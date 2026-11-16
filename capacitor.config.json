@@ -1,0 +1,10 @@
+{
+  "appId": "app.atelas.client",
+  "appName": "Atelas Client",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_icon", "iconColor": "#000000" },
+    "StatusBar": { "style": "DARK", "backgroundColor": "#000000" }
+  }
+}
