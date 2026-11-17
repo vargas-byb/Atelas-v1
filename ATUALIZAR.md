@@ -6,3 +6,6 @@
 4. Instale o APK por cima do antigo. Os dados continuam.
 
 Guarde `atelas-release.jks` e `keystore.properties`. Sem eles não dá para atualizar o app instalado. Mantenha o repositório privado.
+
+## Widget da tela inicial (a partir da 1.4.0)
+O `build.sh` cria o widget nativo (`AtelasWidgetProvider`, `AtelasWidgetPlugin` e os XMLs). Depois de instalar o APK, abra o app uma vez, segure um espaço vazio da tela inicial do celular, toque em Widgets e escolha "Atelas Client". Ele mostra os avisos e as contas do dia e abre o app ao toque.
