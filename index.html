@@ -153,6 +153,13 @@ nav button[aria-current=page] svg{stroke-width:2.4}
 .ia{font-size:11px;font-weight:700;background:var(--accent);color:var(--accent-ink);border-radius:6px;padding:1px 6px;margin-left:6px}
 .empty-chat{margin:auto;text-align:center;max-width:300px;display:flex;flex-direction:column;gap:14px;align-items:center}
 .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.chip[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.notes-ic{width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.notes-ic svg{width:20px;height:20px}
+.memo-list{flex:1;min-height:0;overflow-y:auto;padding:14px max(16px,env(safe-area-inset-right,0px)) 14px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+.memo-prev{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.memo-wrap{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:14px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.memo-in{flex:1;resize:none;min-height:0;font-size:16px;line-height:1.5}
 
 /* avisos */
 #toasts{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top,0px) + 10px);display:flex;flex-direction:column;gap:8px;align-items:center;z-index:50;pointer-events:none;padding:0 16px}
@@ -172,14 +179,18 @@ nav button[aria-current=page] svg{stroke-width:2.4}
 var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})};
 var KEY='meudia.v1';
-function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},dog:'',theme:'dark'}}
+function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},memos:[],dog:'',theme:'dark'}}
 /* Versões: APP_VERSION muda a cada atualização do app. DATA_VERSION só muda quando o formato dos dados muda; nesse caso, acrescente um passo em migrate(). Nunca troque KEY, ou os dados salvos somem. */
-var APP_VERSION='1.2.0',DATA_VERSION=2,MAX_MSGS=300;
+var APP_VERSION='1.3.0',DATA_VERSION=3,MAX_MSGS=300;
 function migrate(o){
+  var from=(o&&o.v)||0;
   o=Object.assign(def(),o||{});
-  ['logs','reminders','contacts','custom','areas'].forEach(function(k){if(!Array.isArray(o[k]))o[k]=[]});
+  ['logs','reminders','contacts','custom','areas','memos'].forEach(function(k){if(!Array.isArray(o[k]))o[k]=[]});
   ['vids','chats','notified','notes'].forEach(function(k){if(!o[k]||typeof o[k]!=='object'||Array.isArray(o[k]))o[k]={}});
-  o.reminders.forEach(function(r){if(r.time==null)r.time=''});
+  o.reminders.forEach(function(r){if(r.time==null)r.time='';if(!r.kind)r.kind='lembrete'});
+  o.memos=o.memos.filter(function(m){return m&&typeof m.text==='string'});
+  /* v3: remove o aniversário do Bruno Severino que vinha de fábrica nas versões antigas */
+  if(from<3)o.reminders=o.reminders.filter(function(r){return !(r.title==='Aniversário do Bruno Severino'&&r.date==='2026-11-04'&&r.yearly)});
   Object.keys(o.chats).forEach(function(k){if(Array.isArray(o.chats[k])&&o.chats[k].length>MAX_MSGS)o.chats[k]=o.chats[k].slice(-MAX_MSGS)});
   o.v=DATA_VERSION;return o;
 }
@@ -243,7 +254,8 @@ var I={
  heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
  book:'<path d="M5 4h10a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h10"/>',
  down:'<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
- up:'<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>'
+ up:'<path d="M12 16V5M7 9l5-5 5 5M5 20h14"/>',
+ note:'<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>'
 };
 var ic=function(n,cls){return '<svg class="i '+(cls||'')+'" viewBox="0 0 24 24" aria-hidden="true">'+I[n]+'</svg>'};
 var logo=function(h){return '<span class="logo" style="--h:'+h+'px" role="img" aria-label="Atelas Client"></span>'};
@@ -255,6 +267,7 @@ var CMDS=[
  {id:'nao',n:'Não',steps:['Feche a mão com o petisco e deixe ele tentar pegar.','Ignore as tentativas, sem puxar a mão.','Quando ele desistir e olhar para você, diga "sim" e recompense.'],tip:'Use tom firme e calmo, sem gritar.'},
  {id:'aqui',n:'Aqui',steps:['Em lugar fechado, agache e abra os braços.','Chame "aqui" com voz animada.','Quando chegar, faça festa e recompense.'],tip:'Nunca chame o cão para dar bronca.'}
 ];
+var isTT=function(u){return /tiktok\.com/i.test(u||'')};
 var allCmds=function(){return CMDS.concat(S.custom)};
 var cmdById=function(id){return allCmds().filter(function(c){return c.id===id})[0]};
 var lastLabel=function(id){
@@ -269,9 +282,9 @@ var weekDots=function(id){
 };
 
 var now=new Date();
-var ui={tab:'home',cmd:null,calY:now.getFullYear(),calM:now.getMonth(),yearView:false,sel:null,drawer:false,chat:'mibo',busy:false,su:{name:'',user:'',photo:''},delAsk:false,delCmdAsk:false,clearAsk:false,area:null,delAreaAsk:false,newArea:false,naName:'',naIcon:'star'};
+var ui={tab:'home',cmd:null,calY:now.getFullYear(),calM:now.getMonth(),yearView:false,sel:null,drawer:false,chat:'mibo',busy:false,su:{name:'',user:'',photo:''},delAsk:false,delCmdAsk:false,clearAsk:false,area:null,delAreaAsk:false,newArea:false,naName:'',naIcon:'star',adding:false,add:null,chatView:'chat',memo:null,memoDel:false,focusMemo:false};
 
-if(!S.seeded){S.seeded=true;if(!S.reminders.length)S.reminders.push({id:uid(),date:'2026-11-04',title:'Aniversário do Bruno Severino',yearly:true,time:''});save()}
+if(!S.seeded){S.seeded=true;save()}
 
 /* tema */
 var weSet=false;
@@ -387,8 +400,8 @@ function trainHTML(){
     return '<div class="pad"><div class="topbar"><button class="iconbtn" data-act="back-cmd" aria-label="Voltar">'+ic('back')+'</button><h2 class="grow">'+esc(c.n)+'</h2></div>'+
      '<div class="card stack"><div class="label">'+(ar?'Explicação':'Como ensinar')+'</div>'+how+'</div>'+
      '<div class="card stack"><div class="label">Vídeo</div>'+
-     (v?'<a class="btn ghost" href="'+esc(v)+'" target="_blank" rel="noopener">'+ic('play','fill')+'Assistir vídeo</a>':'<p class="muted small">Nenhum vídeo ainda. Cole o link abaixo.</p>')+
-     '<input id="vid-in" type="url" inputmode="url" placeholder="https://..." value="'+esc(v)+'" aria-label="Link do vídeo">'+
+     (v?'<a class="btn ghost" href="'+esc(v)+'" target="_blank" rel="noopener">'+ic('play','fill')+(isTT(v)?'Assistir no TikTok':'Assistir vídeo')+'</a>':'<p class="muted small">Nenhum vídeo ainda. Cole abaixo o link do TikTok.</p>')+
+     '<input id="vid-in" type="url" inputmode="url" placeholder="Cole o link do TikTok" value="'+esc(v)+'" aria-label="Link do vídeo do TikTok">'+
      '<button class="btn line sm" data-act="save-vid:'+c.id+'">Salvar link</button></div>'+
      '<div class="card stack"><div class="label">Minhas anotações</div><textarea id="note-in" placeholder="Como foi? O que melhorar?" aria-label="Anotações">'+esc(S.notes[c.id]||'')+'</textarea>'+
      '<button class="btn line sm" data-act="save-note:'+c.id+'">Salvar anotação</button></div>'+
@@ -446,10 +459,18 @@ function calHTML(){
     }
     head='<div class="cal-head"><button class="iconbtn" data-act="cal-prev" aria-label="Mês anterior">'+ic('left')+'</button><h2>'+MONTHS[m]+' '+y+'</h2><button class="iconbtn" data-act="cal-next" aria-label="Próximo mês">'+ic('right')+'</button></div>';
     body='<div class="dow">'+DOW.map(function(x){return '<span>'+x+'</span>'}).join('')+'</div><div class="grid7">'+cells+'</div>'+
-     '<p class="small muted">Ponto cheio: treino feito. Ponto vazado: lembrete.</p>';
+     '<p class="small muted">Ponto cheio: treino feito. Ponto vazado: aviso (lembrete, recado...).</p>';
   }
   var toggle='<div class="row between"><button class="btn ghost sm" data-act="cal-toggle">'+ic(ui.yearView?'cal':'grid')+(ui.yearView?'Ver mês':'Ver ano todo')+'</button><button class="btn line sm" data-act="cal-today">Hoje</button></div>';
   return '<div class="pad"><div><h1>Calendário</h1><p class="muted" style="text-transform:capitalize;margin-top:4px">Hoje é '+esc(longDate(t))+'</p></div>'+toggle+head+body+'</div>'+(ui.sel?sheetHTML():'');
+}
+var KINDS=[['lembrete','Lembrete'],['recado','Recado'],['adendo','Adendo'],['aniversario','Aniversário']];
+var KIND_HINT={lembrete:'Ex: Pagar a conta de luz',recado:'Ex: Ligar para a minha mãe',adendo:'Ex: Levar também o documento',aniversario:'Nome da pessoa'};
+var kindLabel=function(k){var x=KINDS.filter(function(a){return a[0]===k})[0];return x?x[1]:'Lembrete'};
+function readAdd(){
+  if(!ui.add)return;
+  var ti=$('#rem-title'),tm=$('#rem-time'),yr=$('#rem-yearly');
+  if(ti)ui.add.title=ti.value;if(tm)ui.add.time=tm.value;if(yr)ui.add.yearly=yr.checked;
 }
 function sheetHTML(){
   var s=ui.sel,inf=dayInfo(s);
@@ -458,21 +479,24 @@ function sheetHTML(){
     return '<div class="entry">'+ic('check')+'<span class="grow">'+(c&&c.area?'Fez ':'Treinou ')+esc(c?c.n:l.cmd)+'</span><span class="small muted">'+esc(l.time||'')+'</span><button class="iconbtn sm" data-act="del-log:'+l.id+'" aria-label="Apagar treino">'+ic('trash')+'</button></div>';
   }).join('');
   var rems=inf.rems.map(function(r){
-    return '<div class="entry">'+ic('bell')+'<span class="grow">'+esc(r.title)+'</span>'+(r.time?'<span class="tag">'+esc(r.time)+'</span>':'')+(r.yearly?'<span class="tag">todo ano</span>':'')+'<button class="iconbtn sm" data-act="del-rem:'+r.id+'" aria-label="Apagar lembrete">'+ic('trash')+'</button></div>';
+    return '<div class="entry">'+ic('bell')+'<span class="grow" style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(r.title)+'</span>'+(r.kind&&r.kind!=='lembrete'?'<span class="tag">'+esc(kindLabel(r.kind))+'</span>':'')+(r.time?'<span class="tag">'+esc(r.time)+'</span>':'')+(r.yearly?'<span class="tag">todo ano</span>':'')+'<button class="iconbtn sm" data-act="del-rem:'+r.id+'" aria-label="Apagar aviso">'+ic('trash')+'</button></div>';
   }).join('');
-  
+  var ad=ui.add||{kind:'lembrete',title:'',time:'',yearly:false};
+  var form=ui.adding?
+   '<div class="card stack"><div class="label">O que você quer adicionar?</div>'+
+   '<div class="chips" style="justify-content:flex-start">'+KINDS.map(function(k){return '<button class="chip" data-act="add-kind:'+k[0]+'" aria-pressed="'+(ad.kind===k[0])+'">'+k[1]+'</button>'}).join('')+'</div>'+
+   '<textarea id="rem-title" placeholder="'+esc(KIND_HINT[ad.kind]||'')+'" aria-label="Texto">'+esc(ad.title)+'</textarea>'+
+   '<div class="row"><label class="small muted" for="rem-time">Hora (opcional)</label><input id="rem-time" type="time" value="'+esc(ad.time)+'" style="width:auto;flex:1"></div>'+
+   '<label class="chk" for="rem-yearly"><input id="rem-yearly" type="checkbox"'+(ad.yearly?' checked':'')+'>Repetir todo ano neste dia</label>'+
+   '<div class="row"><button class="btn grow" data-act="add-rem">'+ic('check')+'Salvar</button><button class="btn line" data-act="add-cancel">Cancelar</button></div></div>'
+   :'<button class="btn block" data-act="add-open">'+ic('plus')+'Adicionar novo</button>';
   return '<div class="sheet-wrap" data-act="sheet-bg"><div class="sheet" role="dialog" aria-label="'+esc(longDate(s))+'">'+
    '<div class="row"><h2 class="grow" style="text-transform:capitalize">'+esc(longDate(s))+'</h2><button class="iconbtn" data-act="close-sheet" aria-label="Fechar">'+ic('x')+'</button></div>'+
    (logs||rems?'<div class="stack">'+rems+logs+'</div>':'<p class="muted">Nada marcado neste dia.</p>')+
-   
-   '<div class="card stack"><div class="label">Novo lembrete</div>'+
-   '<input id="rem-title" type="text" placeholder="Ex: Aniversário do Bruno Severino" aria-label="Texto do lembrete">'+
-   '<div class="row"><label class="small muted" for="rem-time">Hora (opcional)</label><input id="rem-time" type="time" style="width:auto;flex:1"></div>'+
-   '<label class="chk" for="rem-yearly"><input id="rem-yearly" type="checkbox">Repetir todo ano neste dia</label>'+
-   '<button class="btn" data-act="add-rem">'+ic('plus')+'Adicionar lembrete</button></div></div></div>';
+   form+'</div></div>';
 }
 
-var CHIPS=['Como ensino o Sentar?','O que treinar hoje?','Dicas para o primeiro dia em casa','Quanto tempo dura cada treino?'];
+var CHIPS=['O que tenho para hoje?','Me ajude a organizar meu dia','Quais são meus próximos lembretes?','Me dê uma ideia de rotina'];
 function chatList(){
   var a=[{id:'mibo',name:'Mibo',ia:true}];
   S.contacts.forEach(function(c){a.push({id:c.id,name:c.name})});return a;
@@ -480,23 +504,51 @@ function chatList(){
 function msgsHTML(){
   var arr=S.chats[ui.chat]||[];
   if(!arr.length){
-    if(ui.chat==='mibo')return '<div class="empty-chat">'+logo(44)+'<p class="muted">Oi! Eu sou a Mibo. Posso ajudar com o adestramento, seus lembretes e o que mais precisar.</p><div class="chips">'+CHIPS.map(function(c,i){return '<button class="chip" data-act="chip:'+i+'">'+esc(c)+'</button>'}).join('')+'</div></div>';
+    if(ui.chat==='mibo')return '<div class="empty-chat">'+logo(44)+'<p class="muted">Oi! Eu sou a Mibo. Posso ajudar com seus lembretes, sua rotina e o que mais precisar.</p><div class="chips">'+CHIPS.map(function(c,i){return '<button class="chip" data-act="chip:'+i+'">'+esc(c)+'</button>'}).join('')+'</div></div>';
     return '<div class="empty-chat"><p class="muted">Nenhuma mensagem ainda. As conversas com pessoas ficam salvas só neste aparelho por enquanto.</p></div>';
   }
   return arr.map(function(m){return '<div class="bub '+(m.from==='me'?'me':'them')+'">'+esc(m.text)+(m.t?'<span class="ts">'+hm(m.t)+'</span>':'')+'</div>'}).join('');
 }
-function chatHTML(){
-  var list=chatList(),cur=list.filter(function(x){return x.id===ui.chat})[0]||list[0];
-  var conv=list.map(function(c){
-    return '<div class="convrow"><button class="conv'+(c.id===ui.chat?' on':'')+'" data-act="chat-open:'+c.id+'">'+initialAvatar(c.name,'sm')+'<span class="grow"><b>'+esc(c.name)+'</b>'+(c.ia?'<span class="ia">IA</span>':'')+'</span></button>'+(c.ia?'':'<button class="iconbtn sm" data-act="del-contact:'+c.id+'" aria-label="Apagar conversa com '+esc(c.name)+'">'+ic('trash')+'</button>')+'</div>';
+function memoById(id){return S.memos.filter(function(m){return m.id===id})[0]}
+var memoTimer=null;
+function flushMemo(){if(memoTimer){clearTimeout(memoTimer);memoTimer=null;save()}}
+function closeMemo(){
+  if(ui.memo){var m=memoById(ui.memo);if(m&&!(m.text||'').trim())S.memos=S.memos.filter(function(x){return x.id!==m.id})}
+  ui.memo=null;ui.memoDel=false;if(memoTimer){clearTimeout(memoTimer);memoTimer=null}save();
+}
+var memoLines=function(m){return (m.text||'').split('\n').filter(function(x){return x.trim()})};
+function notesHTML(){
+  var m=ui.memo?memoById(ui.memo):null;
+  if(ui.memo&&!m)ui.memo=null;
+  if(m){
+    return '<div class="chat-head"><button class="iconbtn" data-act="memo-back" aria-label="Voltar para as notas">'+ic('back')+'</button><h3 class="grow">Nota</h3><button class="iconbtn" data-act="memo-del-ask" aria-label="Apagar nota">'+ic('trash')+'</button></div>'+
+     (ui.memoDel?'<div class="clearbar"><span class="grow">Apagar esta nota?</span><button class="btn sm" data-act="memo-del-yes">Apagar</button><button class="btn line sm" data-act="memo-del-no">Cancelar</button></div>':'')+
+     '<div class="memo-wrap"><textarea id="memo-in" class="memo-in" placeholder="Escreva sua anotação" aria-label="Nota">'+esc(m.text||'')+'</textarea><p class="small muted">Salva automaticamente.</p></div>';
+  }
+  var list=S.memos.slice().sort(function(a,b){return (b.t||0)-(a.t||0)});
+  var rows=list.map(function(x){
+    var ls=memoLines(x),d=new Date(x.t||Date.now());
+    return '<button class="item" data-act="memo-open:'+x.id+'"><span class="grow"><span class="t">'+esc(ls[0]?ls[0].trim().slice(0,60):'Nota vazia')+'</span><span class="small muted memo-prev">'+esc(ls[1]?ls[1].trim().slice(0,90):'')+'</span></span><span class="small muted">'+esc(shortDate(fmt(d)))+'</span></button>';
   }).join('');
-  return '<div class="chat">'+(ui.drawer?'<div class="scrim" data-act="drawer"></div>':'')+
-   '<aside class="drawer'+(ui.drawer?' open':'')+'" aria-label="Conversas"><h2>Conversas</h2><div class="stack" style="gap:2px;flex:1;overflow:auto">'+conv+'</div>'+
-   '<div class="stack"><input id="new-contact" type="text" placeholder="Nome da pessoa" aria-label="Nome da nova conversa"><button class="btn ghost sm" data-act="add-contact">'+ic('plus')+'Nova conversa</button></div></aside>'+
+  return '<div class="chat-head"><button class="iconbtn" data-act="drawer" aria-label="Abrir menu">'+ic('menu')+'</button><span class="notes-ic">'+ic('note')+'</span><h3 class="grow">Notes</h3><button class="iconbtn" data-act="memo-new" aria-label="Nova nota">'+ic('plus')+'</button></div>'+
+   '<div class="memo-list">'+(rows||'<div class="empty-chat"><p class="muted">Nenhuma nota ainda. Use este espaço para anotar o que for preciso no dia a dia.</p><button class="btn ghost sm" data-act="memo-new">'+ic('plus')+'Nova nota</button></div>')+'</div>';
+}
+function chatHTML(){
+  var list=chatList(),notes=ui.chatView==='notes',cur=list.filter(function(x){return x.id===ui.chat})[0]||list[0];
+  var conv=list.map(function(c){
+    return '<div class="convrow"><button class="conv'+(c.id===ui.chat&&!notes?' on':'')+'" data-act="chat-open:'+c.id+'">'+initialAvatar(c.name,'sm')+'<span class="grow"><b>'+esc(c.name)+'</b>'+(c.ia?'<span class="ia">IA</span>':'')+'</span></button>'+(c.ia?'':'<button class="iconbtn sm" data-act="del-contact:'+c.id+'" aria-label="Apagar conversa com '+esc(c.name)+'">'+ic('trash')+'</button>')+'</div>';
+  }).join('');
+  var main=notes?notesHTML():
    '<div class="chat-head"><button class="iconbtn" data-act="drawer" aria-label="Abrir lista de conversas">'+ic('menu')+'</button>'+initialAvatar(cur.name,'sm')+'<h3 class="grow">'+esc(cur.name)+(cur.ia?'<span class="ia">IA</span>':'')+'</h3><button class="iconbtn" data-act="clear-ask" aria-label="Limpar conversa">'+ic('trash')+'</button></div>'+
    (ui.clearAsk?'<div class="clearbar"><span class="grow">Limpar esta conversa?</span><button class="btn sm" data-act="clear-yes">Limpar</button><button class="btn line sm" data-act="clear-no">Cancelar</button></div>':'')+
    '<div class="msgs" id="msgs">'+msgsHTML()+'</div>'+
-   '<div class="composer"><input id="chat-in" type="text" placeholder="Escreva uma mensagem" aria-label="Mensagem" autocomplete="off"><button class="send" data-act="send" aria-label="Enviar">'+ic('send')+'</button></div></div>';
+   '<div class="composer"><input id="chat-in" type="text" placeholder="Escreva uma mensagem" aria-label="Mensagem" autocomplete="off"><button class="send" data-act="send" aria-label="Enviar">'+ic('send')+'</button></div>';
+  return '<div class="chat">'+(ui.drawer?'<div class="scrim" data-act="drawer"></div>':'')+
+   '<aside class="drawer'+(ui.drawer?' open':'')+'" aria-label="Menu do chat"><div class="label">Ferramentas</div>'+
+   '<div class="convrow"><button class="conv'+(notes?' on':'')+'" data-act="notes-open"><span class="notes-ic">'+ic('note')+'</span><span class="grow"><b>Notes</b></span></button></div>'+
+   '<div class="label" style="margin-top:6px">Conversas</div><div class="stack" style="gap:2px;flex:1;overflow:auto">'+conv+'</div>'+
+   '<div class="stack"><input id="new-contact" type="text" placeholder="Nome da pessoa" aria-label="Nome da nova conversa"><button class="btn ghost sm" data-act="add-contact">'+ic('plus')+'Nova conversa</button></div></aside>'+
+   main+'</div>';
 }
 
 var dl=null,permState='';
@@ -536,6 +588,7 @@ function render(){
     return '<button data-act="tab:'+t[0]+'" aria-label="'+t[1]+'"'+(cur===t[0]?' aria-current="page"':'')+'>'+ic(t[2])+'<span>'+t[1]+'</span></button>';
   }).join('')+'</nav>';
   if(ui.tab==='chat'){var m=$('#msgs');if(m)m.scrollTop=m.scrollHeight}
+  if(ui.focusMemo){var mi=$('#memo-in');if(mi)mi.focus();ui.focusMemo=false}
 }
 
 /* foto */
@@ -576,14 +629,19 @@ function prune(){
 function storageInfo(){var n=0;try{n=(localStorage.getItem(KEY)||'').length*2}catch(e){}return n}
 function kb(n){return n<1024?n+' B':n<1048576?(n/1024).toFixed(1).replace('.',',')+' KB':(n/1048576).toFixed(1).replace('.',',')+' MB'}
 function context(){
-  var t=todayStr(),per=allCmds().map(function(c){return c.n+': '+S.logs.filter(function(l){return l.cmd===c.id}).length+' treinos'}).join('; ');
-  var hoje=S.logs.filter(function(l){return l.date===t}).map(function(l){var c=cmdById(l.cmd);return c?c.n:l.cmd}).join(', ')||'nenhum';
+  var t=todayStr(),p=['Hoje é '+longDate(t)+'.','Usuário: '+S.user.name+'.'];
+  if(S.dog)p.push('Cachorro: '+S.dog+'.');
+  if(S.logs.length){
+    var hoje=S.logs.filter(function(l){return l.date===t}).map(function(l){var c=cmdById(l.cmd);return c?c.n:l.cmd}).join(', ')||'nenhum';
+    p.push('Itens marcados hoje: '+hoje+'. Sequência: '+streak()+' dias.');
+  }
   var up=upcoming(3,30).map(function(u){return u.r.title+' ('+shortDate(u.d)+')'}).join('; ')||'nenhum';
-  return 'Hoje é '+longDate(t)+'. Usuário: '+S.user.name+'. Cachorro: '+(S.dog||'ainda não chegou')+'. Treinos feitos hoje: '+hoje+'. Total por comando: '+per+'. Sequência: '+streak()+' dias. Próximos lembretes: '+up+'.';
+  p.push('Próximos lembretes: '+up+'.');
+  return p.join(' ');
 }
 function askMibo(){
   var hist=(S.chats.mibo||[]).slice(-14).map(function(m){return (m.from==='me'?'Usuário: ':'Mibo: ')+m.text}).join('\n');
-  var prompt='Você é a Mibo, a assistente do app pessoal "Atelas Client". Fale em português do Brasil, com tom simpático e direto, respostas curtas (até 5 frases), sem emojis. O usuário vai ganhar um cachorro e usa o app para treinar comandos (Sentar, Deitar, Fica, Não, Aqui), marcar lembretes e organizar o dia. Dê dicas práticas e positivas de adestramento, sem punição.\n\nContexto do app: '+context()+'\n\nConversa até agora:\n'+hist+'\n\nResponda apenas à última mensagem do usuário, como Mibo, sem prefixo.';
+  var prompt='Você é a Mibo, a assistente do app pessoal "Atelas Client". Fale em português do Brasil, com tom simpático e direto, respostas curtas (até 5 frases), sem emojis. O usuário usa o app para organizar o dia, o calendário, lembretes e anotações. Ajude com o que ele pedir, com dicas práticas.\n\nContexto do app: '+context()+'\n\nConversa até agora:\n'+hist+'\n\nResponda apenas à última mensagem do usuário, como Mibo, sem prefixo.';
   var arr=S.chats.mibo;arr.push({from:'them',text:'…',t:Date.now()});var msg=arr[arr.length-1];paintMsgs();ui.busy=true;
   if(!sample){msg.text=NATIVE?'A Mibo ainda não está conectada neste app. Ela chega em uma próxima atualização.':'Ainda não consigo responder aqui. Abra o app pelo Claude para falar comigo.';ui.busy=false;save();paintMsgs();return}
   sample(prompt,{cache:false,onText:function(o){msg.text=o.text||'…';paintLast(msg)}}).then(function(r){
@@ -632,8 +690,10 @@ async function nativeInit(){
   scheduleAll();
   if(AppP){
     AppP.addListener('backButton',function(){
-      if(ui.sel||ui.newArea){ui.sel=null;ui.newArea=false;render();return}
+      if(ui.sel||ui.newArea){ui.sel=null;ui.newArea=false;ui.adding=false;render();return}
       if(ui.drawer){ui.drawer=false;render();return}
+      if(ui.tab==='chat'&&ui.memo){closeMemo();render();return}
+      if(ui.tab==='chat'&&ui.chatView==='notes'){ui.chatView='chat';render();return}
       if(ui.tab==='train'&&ui.cmd){ui.cmd=null;render();return}
       if(ui.tab==='train'){ui.tab='home';ui.area=null;render();return}
       if(ui.tab!=='home'){ui.tab='home';render();return}
@@ -668,7 +728,7 @@ document.addEventListener('click',function(e){
     S.user={name:n,username:u,photo:ui.su.photo||''};save();ui.tab='home';render();checkDue();return;
   }
   if(k==='su-photo-rm'){ui.su.name=($('#su-name').value||'');ui.su.user=($('#su-user').value||'');ui.su.photo='';render();return}
-  if(k==='tab'){ui.tab=arg;ui.area=null;ui.newArea=false;ui.delAreaAsk=false;ui.cmd=null;ui.drawer=false;ui.sel=null;ui.delAsk=false;ui.delCmdAsk=false;ui.clearAsk=false;render();return}
+  if(k==='tab'){closeMemo();ui.adding=false;ui.tab=arg;ui.area=null;ui.newArea=false;ui.delAreaAsk=false;ui.cmd=null;ui.drawer=false;ui.sel=null;ui.delAsk=false;ui.delCmdAsk=false;ui.clearAsk=false;render();return}
   if(k==='area'){ui.tab='train';ui.area=arg;ui.cmd=null;ui.delAreaAsk=false;render();return}
   if(k==='new-area'){ui.newArea=true;ui.naName='';ui.naIcon='star';render();return}
   if(k==='na-icon'){var ni=$('#na-name');if(ni)ui.naName=ni.value;ui.naIcon=arg;render();return}
@@ -715,23 +775,35 @@ document.addEventListener('click',function(e){
   if(k==='cal-m'){ui.calM=+arg;ui.yearView=false;render();return}
   if(k==='cal-toggle'){ui.yearView=!ui.yearView;render();return}
   if(k==='cal-today'){var n2=new Date();ui.calY=n2.getFullYear();ui.calM=n2.getMonth();ui.yearView=false;render();return}
-  if(k==='day'){ui.sel=arg;render();return}
-  if(k==='close-sheet'||k==='sheet-bg'){ui.sel=null;ui.newArea=false;render();return}
+  if(k==='day'){ui.sel=arg;ui.adding=false;ui.add=null;render();return}
+  if(k==='close-sheet'||k==='sheet-bg'){ui.sel=null;ui.newArea=false;ui.adding=false;ui.add=null;render();return}
   
+  if(k==='add-open'){ui.adding=true;ui.add={kind:'lembrete',title:'',time:'',yearly:false};render();var f=$('#rem-title');if(f)f.focus();return}
+  if(k==='add-cancel'){ui.adding=false;ui.add=null;render();return}
+  if(k==='add-kind'){readAdd();ui.add.kind=arg;if(arg==='aniversario')ui.add.yearly=true;render();return}
   if(k==='add-rem'){
-    var tt=($('#rem-title').value||'').trim();if(!tt){toast('Escreva o texto do lembrete.');return}
-    S.reminders.push({id:uid(),date:ui.sel,title:tt,yearly:$('#rem-yearly').checked,time:$('#rem-time').value||''});save();scheduleAll();
-    toast('Lembrete salvo.');checkDue();render();return;
+    readAdd();var ad=ui.add||{};
+    var tt=(ad.title||'').trim();if(!tt){toast('Escreva o texto antes de salvar.');return}
+    if(ad.kind==='aniversario'&&!/^anivers/i.test(tt))tt='Aniversário de '+tt;
+    S.reminders.push({id:uid(),date:ui.sel,title:tt,yearly:!!ad.yearly,time:ad.time||'',kind:ad.kind||'lembrete'});save();scheduleAll();
+    ui.adding=false;ui.add=null;toast('Salvo no calendário.');checkDue();render();return;
   }
   if(k==='del-rem'){S.reminders=S.reminders.filter(function(r){return r.id!==arg});save();scheduleAll();render();return}
   if(k==='del-log'){S.logs=S.logs.filter(function(l){return l.id!==arg});save();render();return}
   if(k==='drawer'){ui.drawer=!ui.drawer;render();return}
-  if(k==='chat-open'){ui.chat=arg;ui.drawer=false;ui.clearAsk=false;render();return}
+  if(k==='chat-open'){ui.chat=arg;ui.chatView='chat';ui.drawer=false;ui.clearAsk=false;render();return}
   if(k==='add-contact'){
     var cn=($('#new-contact').value||'').trim();if(!cn)return;
-    var ct={id:uid(),name:cn};S.contacts.push(ct);save();ui.chat=ct.id;ui.drawer=false;render();return;
+    var ct={id:uid(),name:cn};S.contacts.push(ct);save();ui.chat=ct.id;ui.chatView='chat';ui.drawer=false;render();return;
   }
   if(k==='del-contact'){S.contacts=S.contacts.filter(function(c){return c.id!==arg});delete S.chats[arg];if(ui.chat===arg)ui.chat='mibo';save();render();return}
+  if(k==='notes-open'){ui.chatView='notes';ui.memo=null;ui.drawer=false;render();return}
+  if(k==='memo-new'){var nm2={id:uid(),text:'',t:Date.now()};S.memos.unshift(nm2);save();ui.memo=nm2.id;ui.memoDel=false;ui.focusMemo=true;render();return}
+  if(k==='memo-open'){ui.memo=arg;ui.memoDel=false;ui.focusMemo=true;render();return}
+  if(k==='memo-back'){closeMemo();render();return}
+  if(k==='memo-del-ask'){ui.memoDel=true;render();return}
+  if(k==='memo-del-no'){ui.memoDel=false;render();return}
+  if(k==='memo-del-yes'){S.memos=S.memos.filter(function(x){return x.id!==ui.memo});ui.memo=null;ui.memoDel=false;if(memoTimer){clearTimeout(memoTimer);memoTimer=null}save();toast('Nota apagada.');render();return}
   if(k==='send'){sendMsg();return}
   if(k==='chip'){sendText(CHIPS[+arg]);return}
   if(k==='clear-ask'){ui.clearAsk=true;render();return}
@@ -778,10 +850,16 @@ document.addEventListener('change',function(e){
     fr.readAsText(t.files[0]);
   }
 });
+document.addEventListener('input',function(e){
+  var t=e.target;if(!t||t.id!=='memo-in'||!ui.memo)return;
+  var m=memoById(ui.memo);if(!m)return;
+  m.text=t.value;m.t=Date.now();
+  if(memoTimer)clearTimeout(memoTimer);memoTimer=setTimeout(function(){memoTimer=null;save()},400);
+});
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.target&&e.target.id==='chat-in'){e.preventDefault();sendMsg()}
 });
-document.addEventListener('visibilitychange',function(){if(!document.hidden){checkDue();if(S.user&&ui.tab==='home')render()}});
+document.addEventListener('visibilitychange',function(){if(document.hidden)flushMemo();if(!document.hidden){checkDue();if(S.user&&ui.tab==='home')render()}});
 setInterval(function(){checkDue()},30000);
 
 prune();applyTheme();render();checkDue();nativeInit();if(NATIVE&&LN)LN.checkPermissions().then(function(r){permState=r.display;if(S.user&&ui.tab==='profile')render()}).catch(function(){});
