@@ -9,3 +9,6 @@ Guarde `atelas-release.jks` e `keystore.properties`. Sem eles não dá para atua
 
 ## Widget da tela inicial (a partir da 1.4.0)
 O `build.sh` cria o widget nativo (`AtelasWidgetProvider`, `AtelasWidgetPlugin` e os XMLs). Depois de instalar o APK, abra o app uma vez, segure um espaço vazio da tela inicial do celular, toque em Widgets e escolha "Atelas Client". Ele mostra os avisos e as contas do dia e abre o app ao toque.
+
+## Widgets e microfone
+O `widgets.sh` (chamado pelo `build.sh`) cria quatro widgets: Atelas Hoje (4x2), Atelas Calendário (4x2), Atelas Saúde (2x2) e Atelas Sono (2x2). Ele também liga a permissão de microfone usada nos áudios do chat. Vídeos e áudios ficam no aparelho (IndexedDB) e não entram na cópia de segurança.
