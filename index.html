@@ -286,6 +286,10 @@ nav.changed button[aria-current=page] svg{animation:navpop .5s cubic-bezier(.34,
 .pg-in .pad>*:nth-child(2){animation-delay:.04s}.pg-in .pad>*:nth-child(3){animation-delay:.08s}.pg-in .pad>*:nth-child(4){animation-delay:.12s}
 .pg-in .pad>*:nth-child(5){animation-delay:.16s}.pg-in .pad>*:nth-child(6){animation-delay:.2s}.pg-in .pad>*:nth-child(n+7){animation-delay:.24s}
 @keyframes pgitem{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
+
+.bub.typing{animation:typing 1.1s ease-in-out infinite}
+@keyframes typing{50%{opacity:.45}}
+.retry{align-self:flex-start;margin:-2px 0 4px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .tile.alt{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
 .tile.alt .ic{background:var(--soft)}
@@ -749,10 +753,10 @@ function msgsHTML(){
     if(ui.chat==='mibo')return '<div class="empty-chat">'+logo(44)+'<p class="muted">Oi! Eu sou a Mibo. Posso ajudar com seus lembretes, sua rotina e o que mais precisar.</p><div class="chips">'+CHIPS.map(function(c,i){return '<button class="chip" data-act="chip:'+i+'">'+esc(c)+'</button>'}).join('')+'</div></div>';
     return '<div class="empty-chat"><p class="muted">Nenhuma mensagem ainda. As conversas com pessoas ficam salvas só neste aparelho por enquanto.</p></div>';
   }
-  return arr.map(function(m){
-    var cl='bub '+(m.from==='me'?'me':'them'),ts=m.t?'<span class="ts">'+hm(m.t)+'</span>':'';
+  return arr.map(function(m,ix){
+    var cl='bub '+(m.from==='me'?'me':'them')+(m.text==='…'?' typing':''),ts=m.t?'<span class="ts">'+hm(m.t)+'</span>':'';
     if(m.audio)return '<div class="'+cl+'"><div class="aud" data-aud="'+esc(m.audio.id)+'" data-d="'+(m.audio.d||0)+'"><button class="pp" data-act="aud:'+esc(m.audio.id)+'" aria-label="Tocar áudio">'+ic('play','fill')+'</button><button class="abar" data-act="aud-seek:'+esc(m.audio.id)+'" aria-label="Posição do áudio"><i></i></button><span class="ats">'+dur(m.audio.d)+'</span></div>'+ts+'</div>';
-    return '<div class="'+cl+'">'+esc(m.text)+ts+'</div>';
+    return '<div class="'+cl+'">'+esc(m.text)+ts+'</div>'+(m.err&&ix===arr.length-1&&ui.chat==='mibo'?'<button class="chip retry" data-act="retry">Tentar de novo</button>':'');
   }).join('');
 }
 function memoById(id){return S.memos.filter(function(m){return m.id===id})[0]}
@@ -1042,6 +1046,7 @@ function paintLast(msg){
   if(b&&b.classList.contains('bub')&&b.firstChild&&b.firstChild.nodeType===3){b.firstChild.nodeValue=msg.text;m.scrollTop=m.scrollHeight}else paintMsgs();
 }
 function prune(){
+  Object.keys(S.chats||{}).forEach(function(id){var a=S.chats[id];while(a&&a.length&&a[a.length-1].text==='…')a.pop()});
   var cut=addDays(todayStr(),-60),ch=false;
   Object.keys(S.notified).forEach(function(k){if(k.slice(-10)<cut){delete S.notified[k];ch=true}});
   if(ch)save();
@@ -1061,27 +1066,63 @@ function context(){
   return p.join(' ');
 }
 var GEMINI_KEY='__GEMINI_KEY__';
-function geminiAsk(prompt){
+var AUD_FAIL='Recebi seu áudio e ele ficou guardado aqui, mas não consegui ouvir agora. Se quiser, escreva em texto.';
+function geminiCall(system,contents){
+  var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},45000);
   return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':GEMINI_KEY},
-    body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}]})})
-  .then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j.error&&j.error.message)||r.status);return j})})
-  .then(function(j){var c=j.candidates&&j.candidates[0],x=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||''}).join(''):'';if(!x)throw new Error('vazio');return x.trim()});
+    headers:{'Content-Type':'application/json','x-goog-api-key':GEMINI_KEY},signal:ac?ac.signal:undefined,
+    body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:contents})})
+  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw new Error(r.status+' '+((j.error&&j.error.message)||''));return j})})
+  .then(function(j){var c=j.candidates&&j.candidates[0],x=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||''}).join(''):'';if(!x.trim())throw new Error('vazio');return x.trim()},function(e){clearTimeout(to);throw e});
 }
+function cleanMd(x){return x.replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').replace(/`([^`]+)`/g,'$1').replace(/^\s*[*-]\s+/gm,'• ').replace(/^#{1,6}\s+/gm,'').replace(/\*(\S[^*]*)\*/g,'$1')}
+function chatErr(e){
+  var m=String((e&&e.message)||'');
+  if(!GEMINI_KEY||GEMINI_KEY.indexOf('__')===0)return 'A chave do Gemini não está neste APK. Crie o secret GEMINI_API_KEY no GitHub e gere o APK de novo.';
+  if(e&&e.name==='AbortError')return 'A resposta demorou demais. Toque em tentar de novo.';
+  if(navigator.onLine===false||/failed to fetch|network|load failed/i.test(m))return 'Sem conexão com a internet agora.';
+  if(/api key|API_KEY|permission|^40[13]/i.test(m))return 'O Gemini não aceitou a chave. Confira a chave no Google AI Studio.';
+  if(/quota|^429|exhausted|rate/i.test(m))return 'Muitas mensagens em pouco tempo. Espere um instante e tente de novo.';
+  return 'Não consegui responder agora. Toque em tentar de novo.';
+}
+function blobB64(b){return new Promise(function(res,rej){var f=new FileReader();f.onload=function(){res(String(f.result).split(',')[1]||'')};f.onerror=rej;f.readAsDataURL(b)})}
 function askMibo(){
-  var hist=(S.chats.mibo||[]).slice(-14).map(function(m){return (m.from==='me'?'Usuário: ':'Mibo: ')+m.text}).join('\n');
-  var prompt='Você é a Mibo, a assistente do app pessoal "Atelas Client". Fale em português do Brasil, com tom simpático e direto, respostas curtas (até 5 frases), sem emojis. O usuário usa o app para organizar o dia, o calendário, lembretes e anotações. Ajude com o que ele pedir, com dicas práticas.\n\nContexto do app: '+context()+'\n\nConversa até agora:\n'+hist+'\n\nResponda apenas à última mensagem do usuário, como Mibo, sem prefixo.';
-  var arr=S.chats.mibo;arr.push({from:'them',text:'…',t:Date.now()});var msg=arr[arr.length-1];paintMsgs();ui.busy=true;
-  geminiAsk(prompt).then(function(x){msg.text=x;ui.busy=false;save();paintMsgs()})
-  .catch(function(e){msg.text=navigator.onLine===false?'Sem internet agora. Tente de novo quando conectar.':'Não consegui responder agora. Tente de novo em instantes.';ui.busy=false;save();paintMsgs()});
+  var arr=S.chats.mibo=S.chats.mibo||[];
+  var hist=arr.filter(function(m){return !m.err&&m.text!=='…'}).slice(-14),last=hist[hist.length-1];
+  var sys='Você é a Mibo, a assistente do app pessoal "Atelas Client". Fale em português do Brasil, com tom simpático e direto, respostas curtas (até 5 frases), sem emojis e sem formatação markdown (nada de asteriscos, # ou crases). O usuário usa o app para organizar o dia, o calendário, lembretes e anotações. Ajude com o que ele pedir, com dicas práticas. Responda apenas à última mensagem do usuário.\n\nContexto do app: '+context();
+  var contents=[];
+  hist.forEach(function(m){
+    var role=m.from==='me'?'user':'model',tx=m.audio?'[áudio enviado]':m.text,c=contents[contents.length-1];
+    if(c&&c.role===role)c.parts.push({text:tx});else contents.push({role:role,parts:[{text:tx}]});
+  });
+  while(contents.length&&contents[0].role!=='user')contents.shift();
+  if(!contents.length)return;
+  var ph={from:'them',text:'…',t:Date.now()},isAud=!!(last&&last.from==='me'&&last.audio);
+  arr.push(ph);ui.busy=true;paintMsgs();
+  var pre=Promise.resolve();
+  if(isAud)pre=mget(last.audio.id).then(function(b){if(!b)throw new Error('sem áudio');return blobB64(b).then(function(d){
+    var lc=contents[contents.length-1];lc.parts[lc.parts.length-1]={inlineData:{mimeType:String(last.audio.mt||b.type||'audio/webm').split(';')[0],data:d}};
+    lc.parts.push({text:'Esta é uma mensagem de áudio minha. Ouça e responda.'});
+  })});
+  pre.then(function(){return geminiCall(sys,contents)})
+  .then(function(x){ph.text=cleanMd(x)})
+  .catch(function(e){ph.text=isAud?AUD_FAIL:chatErr(e);ph.err=1})
+  .then(function(){ui.busy=false;save();paintMsgs()});
 }
 function sendText(v){
-  v=(v||'').trim();if(!v||ui.busy)return;
+  v=(v||'').trim();if(!v)return;
+  if(ui.busy&&ui.chat==='mibo'){toast('A Mibo ainda está respondendo.');return false}
   addMsg(ui.chat,'me',v);paintMsgs();
   if(ui.chat==='mibo')askMibo();
+  return true;
 }
-function sendMsg(){var inp=$('#chat-in');if(!inp)return;var v=inp.value;inp.value='';composerSync();sendText(v)}
-
+function sendMsg(){
+  var inp=$('#chat-in');if(!inp)return;var v=inp.value;
+  if(!v.trim())return;
+  if(sendText(v)===false)return;
+  inp.value='';ui.draft='';composerSync();inp.focus();
+}
+function retryMibo(){var a=S.chats.mibo||[];while(a.length&&a[a.length-1].err)a.pop();save();paintMsgs();if(ui.busy)return;askMibo()}
 
 /* ---- mídia local: vídeos e áudios ficam no IndexedDB (o localStorage não aguenta arquivos) ---- */
 var MDB=null,POSTERS=[],VP=null,rec=null,AU={a:null,id:null,u:null};
@@ -1166,7 +1207,7 @@ function vstop(){if(!VP)return;try{VP.d.querySelector('video').pause()}catch(e){
 /* ---- áudio: mensagem de voz no chat ---- */
 function recSupported(){return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)}
 function composerHTML(){
-  return '<input id="chat-in" type="text" placeholder="Escreva uma mensagem" aria-label="Mensagem" autocomplete="off"><button class="send" id="btn-send" data-act="send" aria-label="Enviar" hidden>'+ic('send')+'</button><button class="send" id="btn-mic" data-act="rec-start" aria-label="Gravar áudio">'+ic('mic')+'</button>';
+  return '<input id="chat-in" type="text" placeholder="Escreva uma mensagem" aria-label="Mensagem" autocomplete="off" value="'+esc(ui.draft||'')+'"><button class="send" id="btn-send" data-act="send" aria-label="Enviar"'+((ui.draft||'').trim()?'':' hidden')+'>'+ic('send')+'</button><button class="send" id="btn-mic" data-act="rec-start" aria-label="Gravar áudio"'+((ui.draft||'').trim()?' hidden':'')+'>'+ic('mic')+'</button>';
 }
 function recBarHTML(){
   return '<button class="iconbtn" data-act="rec-cancel" aria-label="Cancelar gravação">'+ic('trash')+'</button><div class="recbar"><i class="recdot"></i><b id="rec-t" style="font-variant-numeric:tabular-nums">0:00</b><span class="small muted">Gravando…</span></div><button class="send" data-act="rec-send" aria-label="Enviar áudio">'+ic('send')+'</button>';
@@ -1208,7 +1249,8 @@ function recCancel(){if(rec&&!rec.stopping){rec.stopping=true;rec.send=false;try
 function addAudio(id,aud){var a=(S.chats[id]=S.chats[id]||[]);a.push({from:'me',audio:aud,t:Date.now()});trimChat(a);save()}
 function trimChat(a){if(a.length>MAX_MSGS)a.splice(0,a.length-MAX_MSGS).forEach(function(m){if(m.audio)mdel(m.audio.id)})}
 function miboAudioReply(){
-  setTimeout(function(){addMsg('mibo','them','Recebi seu áudio e ele ficou guardado aqui. Ainda não consigo ouvir áudios, então se quiser que eu responda, escreva em texto.');if(ui.tab==='chat'&&ui.chat==='mibo'&&ui.chatView!=='notes')paintMsgs()},600);
+  if(!ui.busy){askMibo();return}
+  var w=setInterval(function(){if(!ui.busy){clearInterval(w);askMibo()}},400);
 }
 function audStop(){if(AU.a){try{AU.a.pause()}catch(e){}}if(AU.u)URL.revokeObjectURL(AU.u);AU={a:null,id:null,u:null}}
 function audSync(){
@@ -1541,9 +1583,9 @@ document.addEventListener('click',function(e){
   if(k==='del-rem'){S.reminders=S.reminders.filter(function(r){return r.id!==arg});save();scheduleAll();render();return}
   if(k==='del-log'){S.logs=S.logs.filter(function(l){return l.id!==arg});save();render();return}
   if(k==='drawer'){ui.drawer=!ui.drawer;render();return}
-  if(k==='chat-open'){ui.chat=arg;ui.chatView='chat';ui.drawer=false;ui.clearAsk=false;render();return}
+  if(k==='chat-open'){ui.draft='';ui.chat=arg;ui.chatView='chat';ui.drawer=false;ui.clearAsk=false;render();return}
   if(k==='add-contact'){
-    var cn=($('#new-contact').value||'').trim();if(!cn)return;
+    var nci=$('#new-contact'),cn=nci?(nci.value||'').trim():'';if(!cn){toast('Escreva o nome da pessoa.');return}
     var ct={id:uid(),name:cn};S.contacts.push(ct);save();ui.chat=ct.id;ui.chatView='chat';ui.drawer=false;render();return;
   }
   if(k==='del-contact'){S.contacts=S.contacts.filter(function(c){return c.id!==arg});purgeAudio(S.chats[arg]);delete S.chats[arg];if(ui.chat===arg)ui.chat='mibo';save();render();return}
@@ -1556,6 +1598,7 @@ document.addEventListener('click',function(e){
   if(k==='memo-del-yes'){S.memos=S.memos.filter(function(x){return x.id!==ui.memo});ui.memo=null;ui.memoDel=false;if(memoTimer){clearTimeout(memoTimer);memoTimer=null}save();toast('Nota apagada.');render();return}
   if(k==='send'){sendMsg();return}
   if(k==='chip'){sendText(CHIPS[+arg]);return}
+  if(k==='retry'){retryMibo();return}
   if(k==='clear-ask'){ui.clearAsk=true;render();return}
   if(k==='clear-no'){ui.clearAsk=false;render();return}
   if(k==='clear-yes'){purgeAudio(S.chats[ui.chat]);S.chats[ui.chat]=[];ui.clearAsk=false;save();render();return}
@@ -1643,7 +1686,7 @@ document.addEventListener('change',function(e){
 });
 document.addEventListener('input',function(e){
   var t=e.target;if(t&&t.id==='q-in'){ui.q=t.value;var qr=$('#q-res');if(qr)qr.innerHTML=searchResults(ui.q);return}
-  if(t&&t.id==='chat-in'){composerSync();return}
+  if(t&&t.id==='chat-in'){ui.draft=t.value;composerSync();return}
   if(t&&(t.id==='pf-name'||t.id==='pf-user'||t.id==='pf-dog')){
     var pn=$('#pf-name'),pu=$('#pf-user'),pd=$('#pf-dog'),sb=$('#pf-save');
     if(pn&&pu&&pd&&sb){sb.hidden=!((pn.value||'').trim()!==S.user.name||normUser(pu.value)!==S.user.username||(pd.value||'').trim()!==(S.dog||''));var ok=$('#pf-ok');if(ok)ok.hidden=true}
@@ -1657,7 +1700,7 @@ document.addEventListener('input',function(e){
 });
 document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.target&&e.target.id==='chat-in'){e.preventDefault();sendMsg()}
-  var em={'li-in':'[data-act^="li-add:"]','nl-name':'[data-act="list-add"]','hb-name':'[data-act="hab-add"]'};
+  var em={'new-contact':'[data-act="add-contact"]','li-in':'[data-act^="li-add:"]','nl-name':'[data-act="list-add"]','hb-name':'[data-act="hab-add"]'};
   if(e.key==='Enter'&&e.target&&em[e.target.id]){e.preventDefault();var eb=$(em[e.target.id]);if(eb)eb.click()}
 });
 window.addEventListener('pagehide',function(){flushMemo();flushSave()});
