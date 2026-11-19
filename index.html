@@ -12,6 +12,7 @@
 :root{
   --bg:#F3F3F3; --surface:#FFFFFF; --ink:#0A0A0A; --muted:#6B6B6B; --line:#E1E1E1;
   --accent:#0A0A0A; --accent-ink:#FFFFFF; --soft:#EDEDED;
+  --g-fill:rgba(255,255,255,.55);--g-fill2:rgba(255,255,255,.28);--g-hi:rgba(255,255,255,.95);--g-edge:rgba(255,255,255,.7);--g-low:rgba(0,0,0,.08);--g-shadow:rgba(0,0,0,.14);--g-b1:rgba(120,150,255,.28);--g-b2:rgba(255,150,200,.22);--g-b3:rgba(90,210,190,.22);
   --font-head:"Space Grotesk",system-ui,sans-serif; --font-body:"Inter",system-ui,sans-serif;
   --logo:url("data:image/png;base64,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");
 }
@@ -19,11 +20,13 @@
   :root:not([data-theme="light"]){
     --bg:#000000; --surface:#111111; --ink:#F5F5F5; --muted:#9C9C9C; --line:#262626;
     --accent:#FFFFFF; --accent-ink:#000000; --soft:#1C1C1C; color-scheme:dark;
+    --g-fill:rgba(255,255,255,.11);--g-fill2:rgba(255,255,255,.05);--g-hi:rgba(255,255,255,.38);--g-edge:rgba(255,255,255,.16);--g-low:rgba(0,0,0,.35);--g-shadow:rgba(0,0,0,.5);--g-b1:rgba(90,110,255,.30);--g-b2:rgba(255,80,170,.18);--g-b3:rgba(40,200,170,.18);
   }
 }
 :root[data-theme="dark"]{
   --bg:#000000; --surface:#111111; --ink:#F5F5F5; --muted:#9C9C9C; --line:#262626;
   --accent:#FFFFFF; --accent-ink:#000000; --soft:#1C1C1C; color-scheme:dark;
+  --g-fill:rgba(255,255,255,.11);--g-fill2:rgba(255,255,255,.05);--g-hi:rgba(255,255,255,.38);--g-edge:rgba(255,255,255,.16);--g-low:rgba(0,0,0,.35);--g-shadow:rgba(0,0,0,.5);--g-b1:rgba(90,110,255,.30);--g-b2:rgba(255,80,170,.18);--g-b3:rgba(40,200,170,.18);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -113,16 +116,21 @@ nav button[aria-current=page] svg{stroke-width:2.4}
 .day.empty{background:transparent;border-color:transparent}
 .day.today{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
 .dots{display:flex;gap:3px;height:6px;align-items:center}
-.dot{width:5px;height:5px;border-radius:50%;background:var(--accent)}
-.dot.ring{background:transparent;border:1.5px solid var(--accent);width:6px;height:6px}
+.dot{width:5px;height:5px;flex:none;border-radius:50%;background:var(--accent)}
+.dot.hol{border-radius:1.5px;transform:rotate(45deg);width:6px;height:6px}
+.dot.hol.c{opacity:.45}
+.day.hol{border-color:var(--muted)}
+.day.today .dot.hol{background:var(--accent-ink)}
+.dot.hollow{background:transparent;border:1.5px solid var(--accent);width:6px;height:6px}
 .day.today .dot{background:var(--accent-ink)}
-.day.today .dot.ring{background:transparent;border-color:var(--accent-ink)}
+.day.today .dot.hollow{background:transparent;border-color:var(--accent-ink)}
 .months{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .mini{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 6px;text-align:center}
 .mini b{display:block;font-family:var(--font-head);font-size:13px;margin-bottom:4px;text-transform:capitalize}
 .mini .g{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;font-size:8.5px;font-variant-numeric:tabular-nums;color:var(--muted)}
 .mini .g i{font-style:normal;border-radius:50%;line-height:12px}
 .mini .g i.h{color:var(--ink);font-weight:700;text-decoration:underline}
+.mini .g i.f{color:var(--ink);font-weight:700;box-shadow:inset 0 0 0 1px var(--muted)}
 .mini .g i.t{background:var(--accent);color:var(--accent-ink);font-weight:700;text-decoration:none}
 .mini.cur{border-color:var(--accent);border-width:1.5px}
 .sheet-wrap{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;z-index:20}
@@ -131,6 +139,54 @@ nav button[aria-current=page] svg{stroke-width:2.4}
 .tag{font-size:11.5px;font-weight:600;background:var(--soft);border-radius:999px;padding:2px 8px;white-space:nowrap}
 .chk{display:flex;align-items:center;gap:10px;font-size:14px}
 .chk input{width:20px;height:20px;accent-color:var(--accent)}
+
+/* chave liga/desliga (Perfil > Aparência) */
+.sw{width:52px;height:32px;border-radius:999px;background:var(--soft);border:1.5px solid var(--line);position:relative;flex:none;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:24px;height:24px;border-radius:50%;background:var(--muted);transition:transform .2s,background .2s}
+.sw[aria-checked=true]{background:var(--accent);border-color:var(--accent)}
+.sw[aria-checked=true]::after{transform:translateX(20px);background:var(--accent-ink)}
+
+/* Liquid Glass: opcional, ligado em Perfil > Aparência (html[data-glass=on]).
+   Vidro translúcido com desfoque, brilho nas bordas e barra inferior flutuante, como no iOS 26.
+   O desfoque só vai em poucos elementos grandes para não pesar no Android. */
+:root[data-glass="on"] #app{background:
+  radial-gradient(90% 38% at 8% 0%,var(--g-b1),transparent 70%),
+  radial-gradient(80% 34% at 100% 40%,var(--g-b2),transparent 70%),
+  radial-gradient(90% 38% at 0% 100%,var(--g-b3),transparent 70%),var(--bg)}
+:root[data-glass="on"] .card,:root[data-glass="on"] .entry,:root[data-glass="on"] .item,:root[data-glass="on"] .stat,
+:root[data-glass="on"] .day,:root[data-glass="on"] .mini,:root[data-glass="on"] .ring,:root[data-glass="on"] .addtile{
+  background:linear-gradient(180deg,var(--g-fill),var(--g-fill2));border-color:transparent;
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge),inset 0 -1px 0 var(--g-low)}
+:root[data-glass="on"] .day.empty{background:transparent;box-shadow:none}
+:root[data-glass="on"] .day.today,:root[data-glass="on"] .mini.cur{background:var(--accent);box-shadow:0 4px 16px var(--g-shadow),inset 0 1px 0 var(--g-hi)}
+:root[data-glass="on"] .iconbtn,:root[data-glass="on"] .chip,:root[data-glass="on"] .btn.ghost,:root[data-glass="on"] .btn.line,:root[data-glass="on"] .seg{
+  background:linear-gradient(180deg,var(--g-fill),var(--g-fill2));border-color:transparent;
+  -webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge),inset 0 -1px 0 var(--g-low),0 4px 14px var(--g-shadow)}
+:root[data-glass="on"] .btn:not(.ghost):not(.line):not(.danger),:root[data-glass="on"] .tile{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 86%,#fff),color-mix(in srgb,var(--accent) 80%,transparent));
+  -webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 -1px 0 rgba(0,0,0,.2),0 8px 20px var(--g-shadow)}
+:root[data-glass="on"] .btn.danger{background:linear-gradient(180deg,var(--g-fill),var(--g-fill2));border-color:transparent;
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1.5px var(--ink)}
+:root[data-glass="on"] .seg button[aria-pressed=true]{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 3px 10px var(--g-shadow)}
+:root[data-glass="on"] .btn:active,:root[data-glass="on"] .iconbtn:active,:root[data-glass="on"] .chip:active{transform:scale(.96);transition:transform .12s}
+:root[data-glass="on"] nav{margin:0 max(14px,env(safe-area-inset-left,0px)) calc(8px + var(--sab,0px));padding-bottom:4px;border:0;border-radius:30px;
+  background:linear-gradient(180deg,var(--g-fill),var(--g-fill2));
+  -webkit-backdrop-filter:blur(24px) saturate(180%);backdrop-filter:blur(24px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge),inset 0 -1px 0 var(--g-low),0 10px 30px var(--g-shadow)}
+:root[data-glass="on"] nav button[aria-current=page]{border-radius:22px;background:var(--g-fill);box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge)}
+:root[data-glass="on"] nav button[aria-current=page]::before{display:none}
+:root[data-glass="on"] .sheet{background:linear-gradient(180deg,var(--g-fill),var(--g-fill2)),color-mix(in srgb,var(--bg) 55%,transparent);border-top:0;
+  -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge)}
+:root[data-glass="on"] .toast{background:linear-gradient(180deg,var(--g-fill),var(--g-fill2)),color-mix(in srgb,var(--bg) 60%,transparent);color:var(--ink);border:0;
+  -webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:inset 0 1px 0 var(--g-hi),inset 0 0 0 1px var(--g-edge),0 10px 30px var(--g-shadow)}
+:root[data-glass="on"] .cta{bottom:0}
+@supports not ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))){
+  :root[data-glass="on"] nav,:root[data-glass="on"] .sheet,:root[data-glass="on"] .toast{background:var(--surface)}
+}
 
 /* chat */
 .chat{flex:1;min-height:0;display:flex;flex-direction:column;position:relative;overflow:hidden}
@@ -246,9 +302,9 @@ var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})};
 var KEY='meudia.v1';
 function hdef(){return{goals:{water:2000,kcal:2000,sleep:8},water:{},meals:[],sleep:[]}}
-function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},memos:[],lists:[],habits:[],fin:[],health:hdef(),lastBackup:0,firstRun:0,dog:'',theme:'dark'}}
+function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},memos:[],lists:[],habits:[],fin:[],health:hdef(),lastBackup:0,firstRun:0,dog:'',theme:'dark',glass:false}}
 /* Versões: APP_VERSION muda a cada atualização do app. DATA_VERSION só muda quando o formato dos dados muda; nesse caso, acrescente um passo em migrate(). Nunca troque KEY, ou os dados salvos somem. */
-var APP_VERSION='1.4.0',DATA_VERSION=5,MAX_MSGS=300;
+var APP_VERSION='1.5.0',DATA_VERSION=5,MAX_MSGS=300;
 function migrate(o){
   var from=(o&&o.v)||0;
   o=Object.assign(def(),o||{});
@@ -258,6 +314,7 @@ function migrate(o){
   o.lists.forEach(function(l){if(!Array.isArray(l.items))l.items=[]});
   o.habits.forEach(function(h){if(!h.days||typeof h.days!=='object'||Array.isArray(h.days))h.days={}});
   Object.keys(o.vids).forEach(function(k){var v=o.vids[k];if(typeof v==='string')o.vids[k]=v?[v]:[];else if(!Array.isArray(v))o.vids[k]=[]});
+  o.glass=o.glass===true;
   if(!o.firstRun)o.firstRun=Date.now();
   o.memos=o.memos.filter(function(m){return m&&typeof m.text==='string'});
   /* v5: notas ganham título (vazias somem) e entra a saúde (água, refeições, sono) */
@@ -383,6 +440,14 @@ function applyTheme(){
   var r=document.documentElement;
   if(S.theme==='light'||S.theme==='dark'){r.setAttribute('data-theme',S.theme);weSet=true}
   else if(weSet){r.removeAttribute('data-theme');weSet=false}
+  applyGlass();
+}
+/* Liquid Glass: respeita a opção do sistema de reduzir transparência */
+function applyGlass(){
+  var on=S.glass===true;
+  try{if(window.matchMedia&&matchMedia('(prefers-reduced-transparency: reduce)').matches)on=false}catch(e){}
+  var r=document.documentElement;
+  if(on)r.setAttribute('data-glass','on');else r.removeAttribute('data-glass');
 }
 
 /* avisos */
@@ -533,7 +598,7 @@ function dayInfo(d){
   if(!IDX)IDX=buildIdx();
   var rs=(IDX.R[d]||[]).concat(IDX.Y[d.slice(5)]||[]);
   rs.sort(function(a,b){return (a.time||'').localeCompare(b.time||'')});
-  return {logs:IDX.L[d]||[],rems:rs,bills:IDX.B[d]||[]};
+  return {logs:IDX.L[d]||[],rems:rs,bills:IDX.B[d]||[],hols:holidaysOf(+d.slice(0,4))[d]||[]};
 }
 function calHTML(){
   var y=ui.calY,t=todayStr(),head,body;
@@ -542,25 +607,61 @@ function calHTML(){
     body='<div class="months">'+MONTHS.map(function(mn,m){
       var first=new Date(y,m,1).getDay(),len=new Date(y,m+1,0).getDate(),g='';
       for(var i=0;i<first;i++)g+='<i></i>';
-      for(var d=1;d<=len;d++){var s=ymd(y,m,d),inf=dayInfo(s),has=inf.logs.length||inf.rems.length||inf.bills.length;g+='<i class="'+(s===t?'t':has?'h':'')+'">'+d+'</i>'}
+      for(var d=1;d<=len;d++){var s=ymd(y,m,d),inf=dayInfo(s),has=inf.logs.length||inf.rems.length||inf.bills.length,isH=inf.hols.some(function(x){return x.k!=='c'});g+='<i class="'+(s===t?'t':has?'h':isH?'f':'')+'">'+d+'</i>'}
       return '<button class="mini'+(ymd(y,m,1).slice(0,7)===t.slice(0,7)?' cur':'')+'" data-act="cal-m:'+m+'"><b>'+mn.slice(0,3)+'</b><div class="g">'+g+'</div></button>';
-    }).join('')+'</div><p class="small muted">Dias sublinhados têm treino ou lembrete.</p>';
+    }).join('')+'</div><p class="small muted">Sublinhado: treino ou lembrete. Contorno: feriado.</p>';
   }else{
     var m=ui.calM,first=new Date(y,m,1).getDay(),len=new Date(y,m+1,0).getDate(),cells='';
     for(var i=0;i<first;i++)cells+='<div class="day empty"></div>';
     for(var d=1;d<=len;d++){
       var s2=ymd(y,m,d),inf2=dayInfo(s2),dots='';
       if(inf2.logs.length)dots+='<span class="dot"></span>';
-      if(inf2.rems.length||inf2.bills.length)dots+='<span class="dot ring"></span>';
-      cells+='<button class="day'+(s2===t?' today':'')+'" data-act="day:'+s2+'" aria-label="'+esc(longDate(s2))+'">'+d+'<span class="dots">'+dots+'</span></button>';
+      if(inf2.rems.length||inf2.bills.length)dots+='<span class="dot hollow"></span>';
+      if(inf2.hols.length){var hk=inf2.hols.some(function(x){return x.k!=='c'});dots+='<span class="dot hol'+(hk?'':' c')+'"></span>'}
+      cells+='<button class="day'+(s2===t?' today':'')+(inf2.hols.some(function(x){return x.k!=='c'})?' hol':'')+'" data-act="day:'+s2+'" aria-label="'+esc(longDate(s2))+(inf2.hols.length?', '+esc(inf2.hols.map(function(x){return x.n}).join(', ')):'')+'">'+d+'<span class="dots">'+dots+'</span></button>';
     }
     head='<div class="cal-head"><button class="iconbtn" data-act="cal-prev" aria-label="Mês anterior">'+ic('left')+'</button><h2>'+MONTHS[m]+' '+y+'</h2><button class="iconbtn" data-act="cal-next" aria-label="Próximo mês">'+ic('right')+'</button></div>';
     body='<div class="dow">'+DOW.map(function(x){return '<span>'+x+'</span>'}).join('')+'</div><div class="grid7">'+cells+'</div>'+
-     '<p class="small muted">Ponto cheio: treino feito. Ponto vazado: aviso (lembrete, recado...).</p>';
+     '<p class="small muted">Ponto cheio: treino feito. Ponto vazado: aviso (lembrete, recado...). Losango: feriado ou data comemorativa.</p>';
   }
   var toggle='<div class="row between"><button class="btn ghost sm" data-act="cal-toggle">'+ic(ui.yearView?'cal':'grid')+(ui.yearView?'Ver mês':'Ver ano todo')+'</button><button class="btn line sm" data-act="cal-today">Hoje</button></div>';
   return '<div class="pad"><div><h1>Calendário</h1><p class="muted" style="text-transform:capitalize;margin-top:4px">Hoje é '+esc(longDate(t))+'</p></div>'+toggle+head+body+'</div>'+(ui.sel?sheetHTML():'');
 }
+/* feriados do Brasil, calculados para qualquer ano (não precisa de internet).
+   f = feriado nacional, p = ponto facultativo, c = data comemorativa */
+var HOL_CACHE={};
+function easterOf(y){
+  var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+      h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),
+      mo=Math.floor((h+l-7*m+114)/31),da=((h+l-7*m+114)%31)+1;
+  return new Date(y,mo-1,da);
+}
+function nthWeekday(y,m,wd,n){var first=new Date(y,m,1).getDay();return 1+((wd-first+7)%7)+(n-1)*7}
+function lastWeekday(y,m,wd){var last=new Date(y,m+1,0),back=(last.getDay()-wd+7)%7;return last.getDate()-back}
+function holidaysOf(y){
+  if(HOL_CACHE[y])return HOL_CACHE[y];
+  var M={};
+  function add(m,d,n,k){var s=ymd(y,m,d);(M[s]=M[s]||[]).push({n:n,k:k})}
+  var E=easterOf(y);
+  function off(days,n,k){var x=new Date(E.getFullYear(),E.getMonth(),E.getDate()+days);add(x.getMonth(),x.getDate(),n,k)}
+  add(0,1,'Ano Novo','f');
+  off(-48,'Carnaval (segunda)','p');off(-47,'Carnaval','p');off(-46,'Quarta-feira de Cinzas','p');
+  off(-2,'Sexta-feira Santa','f');off(0,'Páscoa','c');
+  add(3,21,'Tiradentes','f');add(4,1,'Dia do Trabalho','f');
+  off(60,'Corpus Christi','p');
+  add(8,7,'Independência do Brasil','f');add(9,12,'Nossa Senhora Aparecida','f');add(9,12,'Dia das Crianças','c');
+  add(10,2,'Finados','f');add(10,15,'Proclamação da República','f');
+  add(10,20,'Consciência Negra',y>=2024?'f':'c');
+  add(11,25,'Natal','f');
+  add(2,8,'Dia Internacional da Mulher','c');
+  add(4,nthWeekday(y,4,0,2),'Dia das Mães','c');
+  add(5,12,'Dia dos Namorados','c');
+  add(7,nthWeekday(y,7,0,2),'Dia dos Pais','c');
+  add(10,lastWeekday(y,10,5),'Black Friday','c');
+  add(11,24,'Véspera de Natal','c');add(11,31,'Réveillon','c');
+  return HOL_CACHE[y]=M;
+}
+var HOL_KIND={f:'Feriado nacional',p:'Ponto facultativo',c:'Data comemorativa'};
 var KINDS=[['lembrete','Lembrete'],['recado','Recado'],['adendo','Adendo'],['aniversario','Aniversário']];
 var KIND_HINT={lembrete:'Ex: Pagar a conta de luz',recado:'Ex: Ligar para a minha mãe',adendo:'Ex: Levar também o documento',aniversario:'Nome da pessoa'};
 var kindLabel=function(k){var x=KINDS.filter(function(a){return a[0]===k})[0];return x?x[1]:'Lembrete'};
@@ -578,6 +679,9 @@ function sheetHTML(){
   var rems=inf.rems.map(function(r){
     return '<div class="entry">'+ic('bell')+tagDot(r.tag)+'<span class="grow" style="white-space:pre-wrap;overflow-wrap:anywhere">'+esc(r.title)+'</span>'+(r.kind&&r.kind!=='lembrete'?'<span class="tag">'+esc(kindLabel(r.kind))+'</span>':'')+(r.tag?'<span class="tag">'+esc(tagLabel(r.tag))+'</span>':'')+(r.time?'<span class="tag">'+esc(r.time)+'</span>':'')+(r.yearly?'<span class="tag">todo ano</span>':'')+'<button class="iconbtn sm" data-act="del-rem:'+r.id+'" aria-label="Apagar aviso">'+ic('trash')+'</button></div>';
   }).join('');
+  var hols=inf.hols.map(function(h){
+    return '<div class="entry">'+ic('star')+'<span class="grow">'+esc(h.n)+'</span><span class="tag">'+HOL_KIND[h.k]+'</span></div>';
+  }).join('');
   var bills=inf.bills.map(function(f){
     return '<div class="entry">'+ic('wallet')+'<span class="grow">Conta: '+esc(f.desc)+'<span class="small muted" style="display:block">'+esc(brl(f.cents))+(f.paid?' · paga':' · a pagar')+'</span></span><button class="btn line sm" data-act="fin-paid:'+f.id+'">'+(f.paid?'Desfazer':'Pagar')+'</button></div>';
   }).join('');
@@ -593,7 +697,7 @@ function sheetHTML(){
    :'<button class="btn block" data-act="add-open">'+ic('plus')+'Adicionar novo</button>';
   return '<div class="sheet-wrap" data-act="sheet-bg"><div class="sheet" role="dialog" aria-label="'+esc(longDate(s))+'">'+
    '<div class="row"><h2 class="grow" style="text-transform:capitalize">'+esc(longDate(s))+'</h2><button class="iconbtn" data-act="close-sheet" aria-label="Fechar">'+ic('x')+'</button></div>'+
-   (logs||rems||bills?'<div class="stack">'+rems+bills+logs+'</div>':'<p class="muted">Nada marcado neste dia.</p>')+
+   (logs||rems||bills||hols?'<div class="stack">'+hols+rems+bills+logs+'</div>':'<p class="muted">Nada marcado neste dia.</p>')+
    form+'</div></div>';
 }
 
@@ -824,7 +928,9 @@ function profileHTML(){
    '<label class="small muted" for="pf-user">Usuário</label><input id="pf-user" type="text" autocapitalize="none" value="'+esc(u.username)+'">'+
    '<label class="small muted" for="pf-dog">Nome do cachorro (opcional)</label><input id="pf-dog" type="text" value="'+esc(S.dog)+'" placeholder="Quando ele chegar">'+
    (saved?'<p class="done-msg" id="pf-ok">'+ic('check')+'Alterações salvas</p>':'')+'<button class="btn" id="pf-save" data-act="save-profile" hidden>Salvar alterações</button></div>'+
-   '<div class="card stack"><div class="label">Aparência</div><div class="seg" role="group" aria-label="Tema">'+th+'</div></div>'+
+   '<div class="card stack"><div class="label">Aparência</div><div class="seg" role="group" aria-label="Tema">'+th+'</div>'+
+   '<div class="row between" style="gap:14px;margin-top:4px"><div class="grow"><p style="font-weight:600">Efeito Liquid Glass</p><p class="small muted">Botões, barras e cartões de vidro translúcido, no estilo do iOS 26. Funciona no iPhone e no Android.</p></div>'+
+   '<button class="sw" role="switch" aria-checked="'+(S.glass===true)+'" aria-label="Efeito Liquid Glass" data-act="glass"></button></div></div>'+
    '<div class="card stack"><div class="label">Lembretes no celular</div>'+
    '<p class="small muted">Com o app aberto, o lembrete do dia aparece na tela. Avisos do sistema só funcionam se o navegador permitir.</p>'+
    (perm==='granted'?'<p class="done-msg">'+ic('check')+'Avisos do sistema ativados</p>':perm==='denied'?'<p class="small muted">Avisos bloqueados nas configurações do navegador.</p>':perm==='unsupported'?'<p class="small muted">Este navegador não oferece avisos do sistema.</p>':'<button class="btn ghost sm" data-act="notif">'+ic('bell')+'Ativar avisos do sistema</button>')+'</div>'+
@@ -1444,6 +1550,7 @@ document.addEventListener('click',function(e){
     S.user.name=nn;S.user.username=uu;S.dog=($('#pf-dog').value||'').trim();save();toast('Dados atualizados.');ui.pfSaved=true;render();return;
   }
   if(k==='theme'){S.theme=arg;save();applyTheme();render();return}
+  if(k==='glass'){var mm=$('#main'),sc=mm?mm.scrollTop:0;S.glass=!S.glass;save();applyGlass();render();mm=$('#main');if(mm)mm.scrollTop=sc;return}
   if(k==='notif'){
     if(NATIVE){nativeNotifPerm();return}
     try{Notification.requestPermission().then(function(){render()}).catch(function(){render()})}catch(err){toast('Não foi possível ativar os avisos.')}
