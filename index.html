@@ -260,6 +260,9 @@ nav button:active svg{transform:translateY(-3px) scale(1.18)}
 nav button svg{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
 .btn,.tile,.iconbtn,.chip,nav button,.day,.mini,button.entry{position:relative;overflow:hidden}
 .rip{position:absolute;border-radius:50%;pointer-events:none;background:currentColor;opacity:.22;transform:scale(0);animation:rip .55s ease-out forwards}
+@keyframes daywiggle{0%,100%{transform:none}18%{transform:translateX(-3px) rotate(-3deg)}36%{transform:translateX(3px) rotate(3deg)}54%{transform:translateX(-2px) rotate(-2deg)}72%{transform:translateX(2px) rotate(1.5deg)}88%{transform:translateX(-1px)}}
+.day.shake{animation:daywiggle .45s ease-in-out}
+@media (prefers-reduced-motion:reduce){.day.shake{animation:none}}
 @keyframes rip{to{transform:scale(1);opacity:0}}
 /* liquid glass: Adestrar (.tile) e Saúde (.tile.alt) sem desfoque duplo e com cor certa */
 :root[data-glass="on"] .tile{-webkit-backdrop-filter:none;backdrop-filter:none;color:var(--accent-ink);overflow:hidden;isolation:isolate}
@@ -342,10 +345,10 @@ input[type=time],input[type=date],input[type=number]{font:inherit;color:var(--in
 var $=function(s){return document.querySelector(s)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]})};
 var KEY='meudia.v1';
-function hdef(){return{goals:{water:2000,kcal:2000,sleep:8},water:{},meals:[],sleep:[]}}
+function hdef(){return{goals:{water:2000,kcal:2000,sleep:8},water:{},meals:[],sleep:[],mibo:{on:true,date:'',txt:''}}}
 function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},memos:[],lists:[],habits:[],fin:[],health:hdef(),lastBackup:0,firstRun:0,dog:'',theme:'dark',glass:false}}
 /* Versões: APP_VERSION muda a cada atualização do app. DATA_VERSION só muda quando o formato dos dados muda; nesse caso, acrescente um passo em migrate(). Nunca troque KEY, ou os dados salvos somem. */
-var APP_VERSION='1.0.0',DATA_VERSION=5,MAX_MSGS=300;
+var APP_VERSION='1.1.0',DATA_VERSION=6,MAX_MSGS=300;
 function migrate(o){
   var from=(o&&o.v)||0;
   o=Object.assign(def(),o||{});
@@ -365,6 +368,9 @@ function migrate(o){
   hh.goals=Object.assign(hd.goals,hh.goals&&typeof hh.goals==='object'?hh.goals:{});
   if(!hh.water||typeof hh.water!=='object'||Array.isArray(hh.water))hh.water={};
   ['meals','sleep'].forEach(function(k){if(!Array.isArray(hh[k]))hh[k]=[]});
+  /* v6: a Mibo passa a monitorar a saúde (análise do dia e avisos) */
+  if(!hh.mibo||typeof hh.mibo!=='object'||Array.isArray(hh.mibo))hh.mibo={};
+  hh.mibo=Object.assign({on:true,date:'',txt:''},hh.mibo);
   o.health=hh;
   /* v3: remove o aniversário do Bruno Severino que vinha de fábrica nas versões antigas */
   if(from<3)o.reminders=o.reminders.filter(function(r){return !(r.title==='Aniversário do Bruno Severino'&&r.date==='2026-11-04'&&r.yearly)});
@@ -502,10 +508,10 @@ function checkDue(){
   S.reminders.forEach(function(r){
     if(!matches(r,t))return;if(r.time&&cur<r.time)return;
     var k=r.id+':'+t;if(S.notified[k])return;
-    S.notified[k]=1;changed=true;toast('Hoje'+(r.time?' às '+r.time:'')+': '+r.title,true,true);
+    S.notified[k]=1;changed=true;if(!(NATIVE&&permState==='granted'))toast('Hoje'+(r.time?' às '+r.time:'')+': '+r.title,true,true);
     try{if(window.Notification&&Notification.permission==='granted')new Notification('Lembrete',{body:r.title})}catch(e){}
   });
-  S.fin.forEach(function(f){if(f.kind!=='conta'||f.paid||f.date!==t)return;var k='b'+f.id+':'+t;if(S.notified[k])return;S.notified[k]=1;changed=true;toast('Conta a pagar hoje: '+f.desc,true,true)});
+  S.fin.forEach(function(f){if(f.kind!=='conta'||f.paid||f.date!==t)return;var k='b'+f.id+':'+t;if(S.notified[k])return;S.notified[k]=1;changed=true;if(!(NATIVE&&permState==='granted'))toast('Conta a pagar hoje: '+f.desc,true,true)});
   if(changed){save()}
 }
 
@@ -973,8 +979,8 @@ function profileHTML(){
    '<div class="row between" style="gap:14px;margin-top:4px"><div class="grow"><p style="font-weight:600">Efeito Liquid Glass</p><p class="small muted">Botões, barras e cartões de vidro translúcido, no estilo do iOS 26. Funciona no iPhone e no Android.</p></div>'+
    '<button class="sw" role="switch" aria-checked="'+(S.glass===true)+'" aria-label="Efeito Liquid Glass" data-act="glass"></button></div></div>'+
    '<div class="card stack"><div class="label">Lembretes no celular</div>'+
-   '<p class="small muted">Com o app aberto, o lembrete do dia aparece na tela. Avisos do sistema só funcionam se o navegador permitir.</p>'+
-   (perm==='granted'?'<p class="done-msg">'+ic('check')+'Avisos do sistema ativados</p>':perm==='denied'?'<p class="small muted">Avisos bloqueados nas configurações do navegador.</p>':perm==='unsupported'?'<p class="small muted">Este navegador não oferece avisos do sistema.</p>':'<button class="btn ghost sm" data-act="notif">'+ic('bell')+'Ativar avisos do sistema</button>')+'</div>'+
+   '<p class="small muted">'+(NATIVE?'Os lembretes chegam como notificação do Android, na hora marcada, mesmo com o app fechado.':'Com o app aberto, o lembrete do dia aparece na tela. Avisos do sistema só funcionam se o navegador permitir.')+'</p>'+
+   (perm==='granted'?'<p class="done-msg">'+ic('check')+'Avisos do sistema ativados</p>':perm==='denied'?'<p class="small muted">Avisos bloqueados. Ative em Configurações do Android > Apps > Atelas Client > Notificações.</p>':perm==='unsupported'?'<p class="small muted">Este navegador não oferece avisos do sistema.</p>':'<button class="btn ghost sm" data-act="notif">'+ic('bell')+'Ativar avisos do sistema</button>')+'</div>'+
    '<div class="card stack"><div class="label">Cópia de segurança</div><p class="small muted">Seus dados ficam só neste aparelho. Exporte uma cópia e escolha o Google Drive na hora de compartilhar.</p><p class="small muted">'+(S.lastBackup?'Última cópia: '+esc(new Date(S.lastBackup).toLocaleDateString('pt-BR'))+'.':'Nenhuma cópia feita ainda.')+'</p>'+'<p class="small muted">Em uso: '+kb(storageInfo())+' de cerca de 5 MB que o navegador reserva.</p><p class="small muted">Vídeos e áudios ficam guardados no aparelho e não entram na cópia.</p>'+
    '<div class="row wrap">'+((dl||NATIVE)?'<button class="btn ghost sm" data-act="backup">'+ic('down')+'Exportar</button>':'')+'<label class="btn ghost sm" for="restore-in">'+ic('up')+'Importar</label></div>'+
    '<input id="restore-in" type="file" accept="application/json,.json" data-change="restore" hidden></div>'+
@@ -1077,15 +1083,38 @@ function groqCall(system,contents){
   .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw new Error(r.status+' '+((j.error&&j.error.message)||''));
     var x=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!x||!x.trim())throw new Error('vazio');return x.trim()})},function(e){clearTimeout(to);throw e});
 }
-var AUD_FAIL='Recebi seu áudio e ele ficou guardado aqui, mas não consegui ouvir agora. Se quiser, escreva em texto.';
-function geminiCall(system,contents){
-  var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},45000);
-  return fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent',{method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-key':GEMINI_KEY},signal:ac?ac.signal:undefined,
-    body:JSON.stringify({systemInstruction:{parts:[{text:system}]},contents:contents})})
-  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw new Error(r.status+' '+((j.error&&j.error.message)||''));return j})})
-  .then(function(j){var c=j.candidates&&j.candidates[0],x=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.text||''}).join(''):'';if(!x.trim())throw new Error('vazio');return x.trim()},function(e){clearTimeout(to);throw e});
+var GEM_MODELS=[
+  {m:'gemini-flash-lite-latest',to:20000},
+  {m:'gemini-flash-latest',to:25000,think:'low'}
+];
+function geminiOne(cfg,system,contents,noThink){
+  var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},cfg.to);
+  var body={systemInstruction:{parts:[{text:system}]},contents:contents,generationConfig:{maxOutputTokens:700}};
+  if(cfg.think&&!noThink)body.generationConfig.thinkingConfig={thinkingLevel:cfg.think};
+  return fetch('https://generativelanguage.googleapis.com/v1beta/models/'+cfg.m+':generateContent',{method:'POST',
+    headers:{'Content-Type':'application/json','x-goog-api-key':GEMINI_KEY},signal:ac?ac.signal:undefined,body:JSON.stringify(body)})
+  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);
+    if(!r.ok){var er=new Error(r.status+' '+((j.error&&j.error.message)||''));er.status=r.status;throw er}return j})})
+  .then(function(j){var c=j.candidates&&j.candidates[0],x=c&&c.content&&c.content.parts?c.content.parts.map(function(p){return p.thought?'':(p.text||'')}).join(''):'';if(!x.trim())throw new Error('vazio');return x.trim()},function(e){clearTimeout(to);throw e});
 }
+/* tenta cada modelo em ordem; se um demorar ou falhar, passa para o próximo */
+function geminiCall(system,contents){
+  var first=null,i=0;
+  function next(){
+    var cfg=GEM_MODELS[i++];
+    if(!cfg)return Promise.reject(first);
+    return geminiOne(cfg,system,contents).catch(function(e){
+      if(e&&e.status===400&&cfg.think)return geminiOne(cfg,system,contents,true);
+      throw e;
+    }).catch(function(e){
+      if(!first)first=e;
+      if(e&&(e.status===401||e.status===403))return Promise.reject(first);
+      return next();
+    });
+  }
+  return next();
+}
+var AUD_FAIL='Recebi seu áudio e ele ficou guardado aqui, mas não consegui ouvir agora. Se quiser, escreva em texto.';
 function cleanMd(x){return x.replace(/\*\*(.+?)\*\*/g,'$1').replace(/__(.+?)__/g,'$1').replace(/`([^`]+)`/g,'$1').replace(/^\s*[*-]\s+/gm,'• ').replace(/^#{1,6}\s+/gm,'').replace(/\*(\S[^*]*)\*/g,'$1')}
 function chatErr(e){
   var m=String((e&&e.message)||'');
@@ -1325,6 +1354,26 @@ function healthContext(){
   var T=todayStr(),g=S.health.goals,sl=sleepOn(T)||sleepOn(addDays(T,-1)),w7=week(T),sa=avg(w7.map(function(d){var e=sleepOn(d);return e?e.min:0})),ka=avg(w7.map(kcalOn));
   return 'Saúde hoje: água '+waterOn(T)+' ml (meta '+g.water+'), '+kcalOn(T)+' kcal (meta '+g.kcal+'), sono mais recente '+(sl?hmin(sl.min)+', qualidade '+(sl.q||'?')+' de 5':'sem registro')+'. Médias de 7 dias: sono '+(sa?hmin(sa):'sem dados')+', comida '+(ka?Math.round(ka)+' kcal':'sem dados')+'.';
 }
+/* Mibo analisa a saúde: texto curto gerado pela IA, guardado por dia */
+function weekDetail(){
+  var T=todayStr(),g=S.health.goals;
+  return week(T).map(function(d){var e=sleepOn(d);return shortDate(d)+': água '+waterOn(d)+' ml, '+kcalOn(d)+' kcal, sono '+(e?hmin(e.min)+' (qualidade '+(e.q||'?')+'/5)':'sem registro')}).join('; ')+'. Metas: água '+g.water+' ml, '+g.kcal+' kcal, sono '+g.sleep+' h.';
+}
+function miboHealth(force){
+  var m=S.health.mibo;if(ui.hbusy)return;
+  if(!GEMINI_KEY||GEMINI_KEY.indexOf('__')===0){if(force)toast('A chave do Gemini não está neste APK.');return}
+  ui.hbusy=true;if(ui.tab==='health')render();
+  var sys='Você é a Mibo, assistente do app Atelas Client, acompanhando a saúde do usuário. Português do Brasil, tom simpático e direto, sem emojis e sem markdown. Escreva até 4 frases curtas: aponte o ponto mais importante da semana (água, alimentação ou sono) e dê UMA ação prática para hoje. Não dê diagnóstico nem recomende remédios; se algo parecer preocupante, sugira procurar um profissional de saúde.';
+  var ct=[{role:'user',parts:[{text:'Dados dos últimos 7 dias: '+weekDetail()+' Hoje: '+healthContext()+' Faça a análise.'}]}];
+  geminiCall(sys,ct).then(function(x){m.txt=cleanMd(x);m.date=todayStr();save()})
+   .catch(function(e){if(force)toast(chatErr(e))})
+   .then(function(){ui.hbusy=false;if(ui.tab==='health')render()});
+}
+function miboHealthAuto(){
+  var m=S.health&&S.health.mibo;if(!m||m.date===todayStr()||!S.user)return;
+  var w7=week(todayStr()),n=w7.filter(function(d){return waterOn(d)||kcalOn(d)||sleepOn(d)}).length;
+  if(n>=2)miboHealth(false);
+}
 function healthTile(){
   var T=todayStr(),sl=sleepOn(T)||sleepOn(addDays(T,-1));
   return '<button class="tile alt" data-act="tab:health"><span class="ic">'+ic('pulse')+'</span><span class="grow"><strong>Saúde</strong><span class="s">Água '+ml(waterOn(T))+' · Sono '+(sl?hmin(sl.min):'sem registro')+'</span></span>'+ic('chev')+'</button>';
@@ -1343,7 +1392,12 @@ function healthHTML(){
   var rings='<div class="rings"><div class="ring">'+ring(w/g.water,'#4f8cff',Math.round(w/g.water*100)+'%')+'<b>'+ml(w)+'</b><span>água</span></div>'+
    '<div class="ring">'+ring(k/g.kcal,k>g.kcal*1.15?'#ff6b6b':'#ffb020',Math.round(k/g.kcal*100)+'%')+'<b>'+k+' kcal</b><span>comida</span></div>'+
    '<div class="ring">'+ring(sl?sl.min/(g.sleep*60):0,'#b46bff',sl?Math.round(sl.min/(g.sleep*60)*100)+'%':'–')+'<b>'+(sl?hmin(sl.min):'sem registro')+'</b><span>sono</span></div></div>';
-  var ins='<div class="card stack"><div class="label">Mibo monitora</div>'+insights().map(function(t){return '<p>'+esc(t)+'</p>'}).join('')+'<button class="btn ghost sm" style="align-self:flex-start" data-act="h-ask">'+ic('chat')+'Pedir análise para a Mibo</button></div>';
+  var mb=S.health.mibo||{on:true,date:'',txt:''};
+  var ins='<div class="card stack"><div class="label">Mibo monitora</div>'+
+   (mb.txt?'<p>'+esc(mb.txt)+'</p><p class="small muted">Análise de '+esc(mb.date===T?'hoje':shortDate(mb.date))+'.</p>':insights().map(function(t){return '<p>'+esc(t)+'</p>'}).join(''))+
+   (ui.hbusy?'<p class="small muted">A Mibo está analisando seus dados…</p>':'')+
+   '<div class="row wrap"><button class="btn ghost sm" data-act="h-mibo-run"'+(ui.hbusy?' disabled':'')+'>'+ic('pulse')+'Analisar agora</button><button class="btn line sm" data-act="h-ask">'+ic('chat')+'Conversar com a Mibo</button></div>'+
+   '<div class="row between" style="gap:14px;margin-top:4px"><div class="grow"><p style="font-weight:600">Avisos da Mibo</p><p class="small muted">Lembra de beber água, registrar refeições e dormir. Pula o que você já registrou no dia.</p></div><button class="sw" role="switch" aria-checked="'+(mb.on!==false)+'" aria-label="Avisos da Mibo" data-act="h-mibo-on"></button></div></div>';
   var water='<div class="card stack"><div class="label">Água · meta '+ml(g.water)+'</div><p><b style="font-size:22px;font-family:var(--font-head)">'+ml(w)+'</b></p><div class="quick">'+[200,300,500].map(function(v){return '<button class="btn ghost sm" data-act="h-water:'+v+'">+'+v+' ml</button>'}).join('')+'<button class="btn line sm" data-act="h-water:-200" aria-label="Tirar 200 ml">−200</button></div>'+
    barsSVG(wk.map(waterOn),lb,g.water,'#4f8cff',function(v){return (v/1000).toFixed(1).replace('.',',')})+'</div>';
   var food='<div class="card stack"><div class="label">Alimentação · meta '+g.kcal+' kcal</div>'+(meals||'<p class="muted small">Nenhuma refeição registrada neste dia.</p>')+
@@ -1418,22 +1472,22 @@ function moreActs(k,arg,el,e){
   if(k==='vplay'){var vp=arg.split(':');vplay(vp[0],+vp[1]);return true}
   if(k==='vclose'){vstop();return true}
   if(k==='h-day'){var nd=addDays(hDay(),+arg);if(nd>todayStr())return true;ui.hd=nd;render();return true}
-  if(k==='h-water'){var dd=hDay(),v=Math.max(0,waterOn(dd)+(+arg));if(v)S.health.water[dd]=v;else delete S.health.water[dd];save();render();return true}
+  if(k==='h-water'){var dd=hDay(),v=Math.max(0,waterOn(dd)+(+arg));if(v)S.health.water[dd]=v;else delete S.health.water[dd];save();scheduleAll();render();return true}
   if(k==='h-meal-type'){readMeal();ui.meal.type=arg;render();return true}
   if(k==='h-meal-add'){
     readMeal();var ds=(ui.meal.desc||'').trim();if(!ds){toast('Escreva o que você comeu.');return true}
     var kc=Math.round(parseFloat(String(ui.meal.kcal).replace(',','.')));
     S.health.meals.push({id:uid(),date:hDay(),type:ui.meal.type,desc:ds,kcal:kc>0?kc:0,t:Date.now()});
-    ui.meal.desc='';ui.meal.kcal='';save();toast('Refeição salva.');render();return true;
+    ui.meal.desc='';ui.meal.kcal='';save();scheduleAll();toast('Refeição salva.');render();return true;
   }
-  if(k==='h-meal-del'){S.health.meals=S.health.meals.filter(function(m){return m.id!==arg});save();render();return true}
+  if(k==='h-meal-del'){S.health.meals=S.health.meals.filter(function(m){return m.id!==arg});save();scheduleAll();render();return true}
   if(k==='h-sl-q'){readSl();ui.sl.q=+arg;render();return true}
   if(k==='h-sl-save'){
     readSl();var mn=slMin(ui.sl.bed,ui.sl.wake),d2=hDay();
     if(mn<60||mn>1080){toast('Confira os horários: o sono deve ter entre 1h e 18h.');return true}
     S.health.sleep=S.health.sleep.filter(function(s){return s.date!==d2});
     S.health.sleep.push({id:uid(),date:d2,bed:ui.sl.bed,wake:ui.sl.wake,min:mn,q:ui.sl.q||3});
-    S.health.sleep.sort(function(a,b){return a.date.localeCompare(b.date)});save();toast('Sono salvo.');render();return true;
+    S.health.sleep.sort(function(a,b){return a.date.localeCompare(b.date)});save();scheduleAll();toast('Sono salvo.');render();return true;
   }
   if(k==='h-sl-del'){var d3=hDay();S.health.sleep=S.health.sleep.filter(function(s){return s.date!==d3});ui.slDay=null;save();render();return true}
   if(k==='h-goals'){ui.hgoals=!ui.hgoals;render();return true}
@@ -1442,6 +1496,8 @@ function moreActs(k,arg,el,e){
     if(!(gw>=500&&gw<=10000)||!(gk>=500&&gk<=10000)||!(gs>=3&&gs<=14)){toast('Confira os valores: água 500 a 10000 ml, calorias 500 a 10000, sono 3 a 14 horas.');return true}
     S.health.goals={water:gw,kcal:gk,sleep:gs};ui.hgoals=false;save();toast('Metas salvas.');render();return true;
   }
+  if(k==='h-mibo-run'){miboHealth(true);return true}
+  if(k==='h-mibo-on'){S.health.mibo.on=!(S.health.mibo.on!==false);save();scheduleAll();if(S.health.mibo.on)ensureNotif();render();return true}
   if(k==='h-ask'){ui.tab='chat';ui.chatView='chat';ui.chat='mibo';ui.drawer=false;render();sendText('Analise minha saúde dos últimos 7 dias (água, alimentação e sono) e diga o que posso melhorar.');return true}
   return false;
 }
@@ -1478,14 +1534,41 @@ async function scheduleAll(){
       var p=f.date.split('-').map(Number),at=new Date(p[0],p[1]-1,p[2],9,0);
       if(at.getTime()>nowMs)list.push({id:nid('b'+f.id),title:'Atelas Client',body:'Conta a pagar hoje: '+f.desc,channelId:'lembretes',schedule:{at:at,allowWhileIdle:true}});
     });
+    list=list.concat(miboNudges(nowMs));
     if(list.length)await LN.schedule({notifications:list});
   }catch(e){}
   schedBusy=false;if(schedAgain){schedAgain=false;scheduleAll()}
 }
+function miboNudges(nowMs){
+  var m=S.health&&S.health.mibo;if(!m||!m.on)return [];
+  var out=[],T=todayStr(),g=S.health.goals;
+  var plan=[
+    {k:'agua1',h:10,mi:30,t:'Hora de beber água. Um copo agora já ajuda a bater a meta de hoje.',w:1},
+    {k:'almoco',h:13,mi:30,t:'Já almoçou? Registre a refeição para eu acompanhar sua alimentação.',meal:'almoco'},
+    {k:'agua2',h:15,mi:30,t:'Como está a água hoje? Beba um copo e registre no app.',w:1},
+    {k:'agua3',h:18,mi:30,t:'Falta pouco do dia. Confira se a água de hoje está perto da meta.',w:1},
+    {k:'jantar',h:20,mi:30,t:'Registre sua janta para fechar o dia de alimentação.',meal:'jantar'},
+    {k:'sono',h:22,mi:30,t:'Hora de desacelerar. Dormir ~'+g.sleep+'h faz diferença amanhã.'},
+    {k:'sonoreg',h:8,mi:0,t:'Bom dia! Registre como foi seu sono de ontem para eu acompanhar.',sl:1}
+  ];
+  for(var d=0;d<7;d++){
+    var ds=addDays(T,d),p=ds.split('-').map(Number);
+    plan.forEach(function(x){
+      var at=new Date(p[0],p[1]-1,p[2],x.h,x.mi);if(at.getTime()<=nowMs)return;
+      if(d===0){
+        if(x.w&&waterOn(T)>=g.water*.8)return;
+        if(x.meal&&S.health.meals.some(function(e){return e.date===T&&e.type===x.meal}))return;
+        if(x.sl&&sleepOn(T))return;
+      }
+      out.push({id:nid('mibo:'+ds+':'+x.k),title:'Mibo',body:x.t,channelId:'mibo',schedule:{at:at,allowWhileIdle:true}});
+    });
+  }
+  return out;
+}
 async function nativeInit(){
   if(!NATIVE)return;
-  try{if(LN)await LN.createChannel({id:'lembretes',name:'Lembretes',description:'Avisos dos seus lembretes',importance:4,visibility:1})}catch(e){}
-  scheduleAll();pushWidget();consumeTab();
+  try{if(LN){await LN.createChannel({id:'lembretes',name:'Lembretes',description:'Avisos dos seus lembretes',importance:5,visibility:1,vibration:true});await LN.createChannel({id:'mibo',name:'Mibo',description:'Avisos de saúde da Mibo',importance:4,visibility:1})}}catch(e){}
+  ensureNotif();pushWidget();consumeTab();
   if(AppP){
     AppP.addListener('backButton',function(){
       if(ui.vplay){vstop();return}
@@ -1512,6 +1595,18 @@ async function nativeBackup(){
     S.lastBackup=Date.now();save();render();
   }catch(e){if(!e||!/cancel/i.test(String(e.message||e)))toast('Não foi possível salvar a cópia.')}
 }
+async function ensureNotif(){
+  if(!NATIVE||!LN||!S.user)return;
+  try{
+    var r=await LN.checkPermissions();
+    if(r.display!=='granted'&&r.display!=='denied')r=await LN.requestPermissions();
+    permState=r.display;
+    if(r.display==='granted'){
+      try{var ex=await LN.checkExactNotificationSetting();if(ex&&ex.exact_alarm==='prompt'&&!S.askedExact){S.askedExact=1;save();await LN.changeExactNotificationSetting()}}catch(e){}
+      scheduleAll();
+    }
+  }catch(e){}
+}
 async function nativeNotifPerm(){
   try{var r=await LN.requestPermissions();permState=r.display;if(r.display==='granted'){scheduleAll();toast('Avisos ativados.')}else toast('Avisos não liberados. Ative nas configurações do Android.')}catch(e){toast('Não foi possível ativar os avisos.')}
   render();
@@ -1532,7 +1627,7 @@ document.addEventListener('click',function(e){
     S.user={name:n,username:u,photo:ui.su.photo||''};save();ui.tab='home';render();checkDue();return;
   }
   if(k==='su-photo-rm'){ui.su.name=($('#su-name').value||'');ui.su.user=($('#su-user').value||'');ui.su.photo='';render();return}
-  if(k==='tab'){closeMemo();ui.adding=false;ui.list=null;ui.listDel=false;ui.habDel=null;ui.finForm=false;if(arg==='search'){ui.q='';ui.focusQ=true}ui.tab=arg;ui.area=null;ui.newArea=false;ui.delAreaAsk=false;ui.cmd=null;ui.drawer=false;ui.sel=null;ui.delAsk=false;ui.delCmdAsk=false;ui.clearAsk=false;render();return}
+  if(k==='tab'){if(arg==='health')setTimeout(miboHealthAuto,60);closeMemo();ui.adding=false;ui.list=null;ui.listDel=false;ui.habDel=null;ui.finForm=false;if(arg==='search'){ui.q='';ui.focusQ=true}ui.tab=arg;ui.area=null;ui.newArea=false;ui.delAreaAsk=false;ui.cmd=null;ui.drawer=false;ui.sel=null;ui.delAsk=false;ui.delCmdAsk=false;ui.clearAsk=false;render();return}
   if(k==='area'){ui.tab='train';ui.area=arg;ui.cmd=null;ui.delAreaAsk=false;render();return}
   if(k==='new-area'){ui.newArea=true;ui.naName='';ui.naIcon='star';render();return}
   if(k==='na-icon'){var ni=$('#na-name');if(ni)ui.naName=ni.value;ui.naIcon=arg;render();return}
@@ -1580,7 +1675,7 @@ document.addEventListener('click',function(e){
   if(k==='cal-m'){ui.calM=+arg;ui.yearView=false;render();return}
   if(k==='cal-toggle'){ui.yearView=!ui.yearView;render();return}
   if(k==='cal-today'){var n2=new Date();ui.calY=n2.getFullYear();ui.calM=n2.getMonth();ui.yearView=false;render();return}
-  if(k==='day'){ui.sel=arg;ui.adding=false;ui.add=null;render();return}
+  if(k==='day'){ui.sel=arg;ui.adding=false;ui.add=null;render();var sd=document.querySelector('.day[data-act="day:'+arg+'"]');if(sd){sd.classList.add('shake');setTimeout(function(){sd.classList.remove('shake')},500)}return}
   if(k==='close-sheet'||k==='sheet-bg'){ui.sel=null;ui.newArea=false;ui.adding=false;ui.add=null;render();return}
   
   if(k==='add-open'){ui.adding=true;ui.add={kind:'lembrete',title:'',time:'',yearly:false,tag:''};render();var f=$('#rem-title');if(f)f.focus();return}
@@ -1591,7 +1686,7 @@ document.addEventListener('click',function(e){
     readAdd();var ad=ui.add||{};
     var tt=(ad.title||'').trim();if(!tt){toast('Escreva o texto antes de salvar.');return}
     if(ad.kind==='aniversario'&&!/^anivers/i.test(tt))tt='Aniversário de '+tt;
-    S.reminders.push({id:uid(),date:ui.sel,title:tt,yearly:!!ad.yearly,time:ad.time||'',kind:ad.kind||'lembrete',tag:ad.tag||''});save();scheduleAll();
+    S.reminders.push({id:uid(),date:ui.sel,title:tt,yearly:!!ad.yearly,time:ad.time||'',kind:ad.kind||'lembrete',tag:ad.tag||''});save();ensureNotif();scheduleAll();
     ui.adding=false;ui.add=null;toast('Salvo no calendário.');checkDue();render();return;
   }
   if(k==='del-rem'){S.reminders=S.reminders.filter(function(r){return r.id!==arg});save();scheduleAll();render();return}
@@ -1721,6 +1816,6 @@ window.addEventListener('pagehide',function(){flushMemo();flushSave()});
 document.addEventListener('visibilitychange',function(){if(document.hidden){flushMemo();flushSave()}if(!document.hidden){checkDue();if(S.user&&ui.tab==='home')render()}});
 setInterval(function(){checkDue()},30000);
 
-prune();applyTheme();render();checkDue();nativeInit();if(NATIVE&&LN)LN.checkPermissions().then(function(r){permState=r.display;if(S.user&&ui.tab==='profile')render()}).catch(function(){});
+prune();applyTheme();render();nativeInit();if(NATIVE&&LN)LN.checkPermissions().then(function(r){permState=r.display;checkDue();if(S.user&&ui.tab==='profile')render()}).catch(function(){checkDue()});else checkDue();
 })();
 </script>
