@@ -1884,7 +1884,8 @@ function syncState(){if(saveT||live||OV)return;try{S=load();IDX=null}catch(e){}}
 function asstEnsure(){if(AS&&AS.ensure)AS.ensure().catch(function(){})}
 function asstHold(on){if(AS&&AS.hold)AS.hold({on:!!on}).catch(function(){})}
 function asstCard(){
-  if(!NATIVE||!AS)return '';
+  if(!NATIVE)return '<div class="card stack"><div class="label">Mibo, sua assistente</div><p class="small muted">O Hey Mibo só funciona no app Atelas Client instalado no Android (o APK). Esta tela está aberta fora do app instalado.</p></div>';
+  if(!AS)return '<div class="card stack"><div class="label">Mibo, sua assistente</div><p class="small muted">O app não encontrou o recurso do assistente. Instale o APK mais recente.</p></div>';
   var a=ui.asst||{},ok=function(t){return '<p class="done-msg">'+ic('check')+t+'</p>'};
   return '<div class="card stack"><div class="label">Mibo, sua assistente</div>'+
    '<div class="row between" style="gap:14px"><div class="grow"><p style="font-weight:600">Hey Mibo</p><p class="small muted">'+(a.model===false?'Este APK foi gerado sem o modelo de voz, então o Hey Mibo não está disponível.':'Em qualquer tela do celular, diga "Hey Mibo" e a Mibo aparece por cima do app que estiver aberto, como o Google Assistente. A escuta é só da palavra de ativação, feita no próprio aparelho, sem internet. Fica uma notificação fixa enquanto estiver ligado e gasta um pouco mais de bateria.')+'</p></div>'+
