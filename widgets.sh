@@ -17,6 +17,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AtelasWidgetPlugin.class);
+        registerPlugin(AtelasAssistantPlugin.class);
         super.onCreate(savedInstanceState);
         keepTab(getIntent());
     }
@@ -25,6 +26,14 @@ public class MainActivity extends BridgeActivity {
     public void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         keepTab(intent);
+        /* app já aberto: avisa a página para ler o pedido (ex.: abrir a Mibo ao vivo) */
+        try {
+            getBridge().getWebView().post(new Runnable() {
+                public void run() {
+                    getBridge().getWebView().evaluateJavascript("window.__atelasTab&&window.__atelasTab()", null);
+                }
+            });
+        } catch (Exception e) {}
     }
 
     private void keepTab(Intent i) {

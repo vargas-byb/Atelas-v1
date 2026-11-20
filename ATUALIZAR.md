@@ -12,3 +12,8 @@ O `build.sh` cria o widget nativo (`AtelasWidgetProvider`, `AtelasWidgetPlugin` 
 
 ## Widgets e microfone
 O `widgets.sh` (chamado pelo `build.sh`) cria quatro widgets: Atelas Hoje (4x2), Atelas Calendário (4x2), Atelas Saúde (2x2) e Atelas Sono (2x2). Ele também liga a permissão de microfone usada nos áudios do chat. Vídeos e áudios ficam no aparelho (IndexedDB) e não entram na cópia de segurança.
+
+## Assistente Mibo e "Hey Mibo" (a partir da 1.3.0)
+O `assistente.sh` (chamado pelo `build.sh`) baixa o modelo de voz offline (Vosk, português, ~30 MB) durante o build e cria o serviço do "Hey Mibo" e o registro da Mibo como assistente digital do Android.
+- Perfil > "Mibo, sua assistente": liga o Hey Mibo (notificação fixa enquanto ouve), permite aparecer sobre outros apps e define a Mibo como assistente padrão.
+- Se o download do modelo falhar, o APK sai sem o Hey Mibo e o Actions mostra um aviso.

@@ -33,7 +33,7 @@ t=t.replace("    buildTypes {\n        release {","""    signingConfigs {
     buildTypes {
         release {
             signingConfig signingConfigs.release""",1)
-t=t.replace('versionCode 1\n        versionName "1.0"','versionCode 19\n        versionName "1.2.0"')
+t=t.replace('versionCode 1\n        versionName "1.0"','versionCode 20\n        versionName "1.3.0"')
 open(p,'w').write(t)
 # ícone de notificação (branco sobre transparente)
 f=Image.open('assets/icon-foreground.png').convert('RGBA')
@@ -46,6 +46,8 @@ for d,s in [('mdpi',24),('hdpi',36),('xhdpi',48),('xxhdpi',72),('xxxhdpi',96)]:
 PY
 # ---- widgets da tela inicial e microfone (código nativo Android)
 bash widgets.sh
+# ---- Mibo como assistente e "Hey Mibo"
+bash assistente.sh
 
 npx capacitor-assets generate --android
 npx cap sync android
