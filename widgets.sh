@@ -238,24 +238,19 @@ public class AtelasCalendarWidget extends AppWidgetProvider {
                 }
                 JSONObject days = data.optJSONObject("days");
                 SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-                String k0 = f.format(now.getTime());
-                Calendar tm = (Calendar) now.clone();
-                tm.add(Calendar.DAY_OF_MONTH, 1);
-                String k1 = f.format(tm.getTime());
+                SimpleDateFormat lf = new SimpleDateFormat("EEE d/MM", pt);
                 StringBuilder sb = new StringBuilder();
                 int n = 0;
-                JSONArray t0 = days == null ? null : days.optJSONArray(k0);
-                JSONArray t1 = days == null ? null : days.optJSONArray(k1);
-                if (t0 != null) {
-                    sb.append("Hoje\n");
-                    if (t0.length() == 0) sb.append("Nada marcado\n");
-                    for (int i = 0; i < t0.length() && n < 4; i++, n++) sb.append("• ").append(t0.optString(i)).append("\n");
+                Calendar cur = (Calendar) now.clone();
+                for (int d = 0; d < 8 && n < 5; d++, cur.add(Calendar.DAY_OF_MONTH, 1)) {
+                    JSONArray arr = days == null ? null : days.optJSONArray(f.format(cur.getTime()));
+                    if (arr == null) continue;
+                    if (d == 0 && arr.length() == 0) { sb.append("Hoje\nNada marcado\n"); continue; }
+                    if (arr.length() == 0) continue;
+                    sb.append(d == 0 ? "Hoje" : d == 1 ? "Amanhã" : lf.format(cur.getTime())).append("\n");
+                    for (int i = 0; i < arr.length() && n < 5; i++, n++) sb.append("• ").append(arr.optString(i)).append("\n");
                 }
-                if (t1 != null && t1.length() > 0 && n < 4) {
-                    sb.append("Amanhã\n");
-                    for (int i = 0; i < t1.length() && n < 5; i++, n++) sb.append("• ").append(t1.optString(i)).append("\n");
-                }
-                if (t0 != null) agenda = sb.toString().trim();
+                if (days != null && days.has(f.format(now.getTime()))) agenda = sb.toString().trim();
             }
         } catch (Exception e) {
             agenda = "Abra o Atelas para atualizar.";
@@ -276,7 +271,7 @@ public class AtelasCalendarWidget extends AppWidgetProvider {
                 rv.setInt(cid, "setBackgroundResource", R.drawable.widget_today);
             } else {
                 rv.setTextColor(cid, mark[dd] ? 0xFF7CC4FF : 0xFFE6E6E6);
-                rv.setInt(cid, "setBackgroundResource", 0);
+                rv.setInt(cid, "setBackgroundResource", mark[dd] ? R.drawable.widget_mark : 0);
             }
         }
         rv.setTextViewText(R.id.cal_agenda, agenda);
@@ -466,6 +461,13 @@ w('drawable/widget_bg.xml', f'''<?xml version="1.0" encoding="utf-8"?>
     <solid android:color="#F2000000" />
     <corners android:radius="22dp" />
     <stroke android:width="1dp" android:color="#33FFFFFF" />
+</shape>
+''')
+w('drawable/widget_mark.xml', f'''<?xml version="1.0" encoding="utf-8"?>
+<shape {NS} android:shape="rectangle">
+    <solid android:color="#227CC4FF" />
+    <stroke android:width="1dp" android:color="#FF7CC4FF" />
+    <corners android:radius="99dp" />
 </shape>
 ''')
 w('drawable/widget_today.xml', f'''<?xml version="1.0" encoding="utf-8"?>
