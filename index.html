@@ -343,7 +343,16 @@ input[type=time],input[type=date],input[type=number]{font:inherit;color:var(--in
 .live-mid{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:100%;max-width:420px;text-align:center}
 .live .orb{display:block;width:176px;height:176px;transition:opacity .3s}
 .live .orb.conectando{opacity:.55}
+.live-sheet{display:contents}
 .live-st{font-size:18px;font-weight:600}
+/* janela flutuante da Mibo (Hey Mibo): folha embaixo, o resto transparente */
+html.ov,body.ov{background:transparent!important}
+body.ov #app,body.ov #toasts{display:none!important}
+body.ov .live{background:rgba(0,0,0,.28);justify-content:flex-end;padding:0}
+body.ov .live-sheet{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;box-sizing:border-box;background:var(--bg);color:var(--ink);border-radius:28px 28px 0 0;padding:16px 20px max(20px,env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(0,0,0,.35);animation:ovup .22s ease-out}
+body.ov .live-mid{flex:none;gap:6px}
+body.ov .live .orb{width:128px;height:128px}
+@keyframes ovup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 .live-tx{font-size:14px;max-width:100%;overflow-wrap:anywhere;min-height:20px}
 .live-bot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 </style>
@@ -1263,7 +1272,7 @@ var LIVE_TRIES=[
   {m:'gemini-2.5-flash-native-audio-preview-09-2025',top:false}
 ];
 var LIVE_URL='wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=';
-var live=null;
+var live=null,OV=false;
 function liveSys(){
   return 'Você é a Mibo, a assistente do app pessoal "Atelas Client", em uma conversa por voz ao vivo. Fale em português do Brasil, de forma natural, simpática e bem curta (uma ou duas frases por vez), como numa conversa de verdade. Não use listas nem leia símbolos. '+
    'Hoje é '+longDate(todayStr())+' ('+todayStr()+'). Quando o usuário pedir para criar, marcar ou agendar um lembrete, compromisso ou aviso, chame a ferramenta criar_lembrete com a data real em AAAA-MM-DD (resolva "amanhã", "sexta", "dia 25" a partir de hoje) e a hora em 24h se ele disser. Se faltar a data, pergunte. Depois de criar, confirme em uma frase.\n\nContexto do app: '+context();
@@ -1289,8 +1298,9 @@ function liveOpen(){
 }
 function liveUI(){
   var d=document.createElement('div');d.id='live';d.className='live';d.setAttribute('role','dialog');d.setAttribute('aria-label','Conversa por voz com a Mibo');
-  d.innerHTML='<div class="small muted">Mibo ao vivo</div><div class="live-mid"><canvas class="orb conectando" id="live-orb" width="352" height="352" aria-hidden="true"></canvas><p class="live-st" id="live-st">Conectando…</p><p class="live-tx muted" id="live-u"></p><p class="live-tx" id="live-b"></p></div>'+
-   '<div class="live-bot" id="live-bot"><button class="btn danger" data-act="live-stop">Encerrar</button></div>';
+  d.innerHTML='<div class="live-sheet"><div class="small muted">Mibo ao vivo</div><div class="live-mid"><canvas class="orb conectando" id="live-orb" width="352" height="352" aria-hidden="true"></canvas><p class="live-st" id="live-st">Conectando…</p><p class="live-tx muted" id="live-u"></p><p class="live-tx" id="live-b"></p></div>'+
+   '<div class="live-bot" id="live-bot"><button class="btn danger" data-act="live-stop">Encerrar</button></div></div>';
+  d.addEventListener('click',function(e){if(e.target===d&&OV)liveClose()});
   document.body.appendChild(d);
 }
 function liveState(L,s,msg){
@@ -1496,6 +1506,7 @@ function liveClose(){
   if(L.ut||L.bt||L.notes.length)liveSaveTurn(L);
   liveFree(L);live=null;asstHold(false);
   var d=$('#live');if(d)d.remove();
+  if(OV){flushSave();if(AS&&AS.closeOverlay)AS.closeOverlay().catch(function(){});return}
   if(ui.tab==='chat')paintMsgs();
 }
 document.addEventListener('click',function(e){
@@ -1858,13 +1869,25 @@ function asstLoad(){
   if(!AS||!AS.status)return;
   AS.status().then(function(r){ui.asst=r;if(S.user&&ui.tab==='profile'&&!ui.busy)render()}).catch(function(){});
 }
+function asstMode(){
+  if(!AS||!AS.mode)return;
+  AS.mode().then(function(r){
+    if(!r||!r.overlay)return;
+    OV=true;document.documentElement.classList.add('ov');document.body.classList.add('ov');
+    if(S.user)liveOpen();
+    if(!live){AS.closeOverlay().catch(function(){});return}
+    AS.reveal().catch(function(){});
+  }).catch(function(){});
+}
+/* a janela flutuante e o app usam o mesmo armazenamento: o app relê os dados ao voltar */
+function syncState(){if(saveT||live||OV)return;try{S=load();IDX=null}catch(e){}}
 function asstEnsure(){if(AS&&AS.ensure)AS.ensure().catch(function(){})}
 function asstHold(on){if(AS&&AS.hold)AS.hold({on:!!on}).catch(function(){})}
 function asstCard(){
   if(!NATIVE||!AS)return '';
   var a=ui.asst||{},ok=function(t){return '<p class="done-msg">'+ic('check')+t+'</p>'};
   return '<div class="card stack"><div class="label">Mibo, sua assistente</div>'+
-   '<div class="row between" style="gap:14px"><div class="grow"><p style="font-weight:600">Hey Mibo</p><p class="small muted">'+(a.model===false?'Este APK foi gerado sem o modelo de voz, então o Hey Mibo não está disponível.':'Com o app em segundo plano, diga "Hey Mibo" e a conversa ao vivo abre. A escuta é só da palavra de ativação, feita no próprio aparelho, sem internet. Fica uma notificação fixa enquanto estiver ligado e gasta um pouco mais de bateria.')+'</p></div>'+
+   '<div class="row between" style="gap:14px"><div class="grow"><p style="font-weight:600">Hey Mibo</p><p class="small muted">'+(a.model===false?'Este APK foi gerado sem o modelo de voz, então o Hey Mibo não está disponível.':'Em qualquer tela do celular, diga "Hey Mibo" e a Mibo aparece por cima do app que estiver aberto, como o Google Assistente. A escuta é só da palavra de ativação, feita no próprio aparelho, sem internet. Fica uma notificação fixa enquanto estiver ligado e gasta um pouco mais de bateria.')+'</p></div>'+
    '<button class="sw" role="switch" aria-checked="'+(a.hotword===true)+'" aria-label="Hey Mibo" data-act="asst-hey"'+(a.model===false?' disabled':'')+'></button></div>'+
    (a.hotword&&!a.mic?'<p class="small muted">Falta permitir o microfone. Aceite o pedido do Android e ligue de novo.</p>':'')+
    (a.hotword?(a.overlay?ok('Pode abrir sobre outros apps'):'<p class="small muted">Para o Hey Mibo abrir o app com outro app na frente, permita "Aparecer sobre outros apps".</p><button class="btn ghost sm" data-act="asst-overlay">Permitir aparecer sobre outros apps</button>'):'')+
@@ -1930,7 +1953,7 @@ function miboNudges(nowMs){
 async function nativeInit(){
   if(!NATIVE)return;
   try{if(LN){await LN.createChannel({id:'lembretes',name:'Lembretes',description:'Avisos dos seus lembretes',importance:5,visibility:1,vibration:true});await LN.createChannel({id:'mibo',name:'Mibo',description:'Avisos de saúde da Mibo',importance:4,visibility:1})}}catch(e){}
-  ensureNotif();pushWidget();consumeTab();asstEnsure();
+  ensureNotif();pushWidget();consumeTab();asstEnsure();asstMode();
   if(AppP){
     AppP.addListener('backButton',function(){
       if(live){liveClose();return}
@@ -1947,7 +1970,7 @@ async function nativeInit(){
       AppP.minimizeApp&&AppP.minimizeApp();
     });
     AppP.addListener('pause',function(){if(live)liveClose();flushMemo();flushSave()});
-    AppP.addListener('resume',function(){consumeTab();checkDue();scheduleAll();pushWidget();if(S.user&&ui.tab==='home')render()});
+    AppP.addListener('resume',function(){syncState();consumeTab();checkDue();scheduleAll();pushWidget();if(S.user&&ui.tab==='home')render()});
   }
 }
 async function nativeBackup(){
@@ -2186,7 +2209,7 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.target&&em[e.target.id]){e.preventDefault();var eb=$(em[e.target.id]);if(eb)eb.click()}
 });
 window.addEventListener('pagehide',function(){flushMemo();flushSave()});
-document.addEventListener('visibilitychange',function(){if(document.hidden){flushMemo();flushSave()}if(!document.hidden){checkDue();if(S.user&&ui.tab==='home')render()}});
+document.addEventListener('visibilitychange',function(){if(document.hidden){flushMemo();flushSave()}if(!document.hidden){syncState();checkDue();if(S.user&&ui.tab==='home')render()}});
 setInterval(function(){checkDue()},30000);
 
 prune();applyTheme();render();nativeInit();if(NATIVE&&LN)LN.checkPermissions().then(function(r){permState=r.display;checkDue();if(S.user&&ui.tab==='profile')render()}).catch(function(){checkDue()});else checkDue();

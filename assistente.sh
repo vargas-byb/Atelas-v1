@@ -5,7 +5,7 @@ set -e
 JAVA=android/app/src/main/java/app/atelas/client
 RES=android/app/src/main/res
 ASSETS=android/app/src/main/assets
-mkdir -p "$JAVA" $RES/xml "$ASSETS"
+mkdir -p "$JAVA" $RES/xml $RES/values "$ASSETS"
 
 # ---- modelo de voz offline (português, ~30 MB). Se o download falhar o APK sai igual, sem o "Hey Mibo".
 if [ ! -d "$ASSETS/model" ]; then
@@ -107,10 +107,9 @@ public class HotwordService extends Service implements RecognitionListener {
     }
 
     static Intent liveIntent(Context c) {
-        Intent i = new Intent(c, MainActivity.class);
+        Intent i = new Intent(c, MiboOverlayActivity.class);
         i.setAction(ACTION_LIVE);
-        i.putExtra("atelas_tab", "mibo-live");
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_NO_ANIMATION);
         return i;
     }
 
@@ -130,7 +129,8 @@ public class HotwordService extends Service implements RecognitionListener {
     }
 
     private Notification fgNotification(String text) {
-        PendingIntent open = PendingIntent.getActivity(this, 11, liveIntent(this), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        PendingIntent open = PendingIntent.getActivity(this, 11, launch != null ? launch : liveIntent(this), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         Intent st = new Intent(this, HotwordService.class).setAction(ACTION_STOP);
         PendingIntent stop = PendingIntent.getService(this, 12, st, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(this, CH_FG)
@@ -374,6 +374,26 @@ public class AtelasAssistantPlugin extends Plugin {
         call.resolve();
     }
 
+    /** A página pergunta se está rodando dentro da janela flutuante da Mibo. */
+    @PluginMethod
+    public void mode(PluginCall call) {
+        JSObject o = new JSObject();
+        o.put("overlay", getActivity() instanceof MiboOverlayActivity);
+        call.resolve(o);
+    }
+
+    @PluginMethod
+    public void reveal(PluginCall call) {
+        if (getActivity() instanceof MiboOverlayActivity) ((MiboOverlayActivity) getActivity()).reveal();
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void closeOverlay(PluginCall call) {
+        if (getActivity() instanceof MiboOverlayActivity) getActivity().finish();
+        call.resolve();
+    }
+
     private void open(PluginCall call, Intent i) {
         try { i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); getContext().startActivity(i); }
         catch (Exception e) {
@@ -395,6 +415,46 @@ public class AtelasAssistantPlugin extends Plugin {
     @PluginMethod
     public void openBatterySettings(PluginCall call) {
         open(call, new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+    }
+}
+EOF
+
+cat > "$JAVA/MiboOverlayActivity.java" <<'EOF'
+package app.atelas.client;
+
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.View;
+import com.getcapacitor.BridgeActivity;
+
+/** Janela translúcida da Mibo: aparece por cima do app que estiver aberto, como o Google Assistente. */
+public class MiboOverlayActivity extends BridgeActivity {
+    private boolean shown = false;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(AtelasWidgetPlugin.class);
+        registerPlugin(AtelasAssistantPlugin.class);
+        super.onCreate(savedInstanceState);
+        try {
+            View w = getBridge().getWebView();
+            w.setBackgroundColor(Color.TRANSPARENT);
+            w.setAlpha(0f);
+            /* se a página demorar, mostra mesmo assim */
+            w.postDelayed(new Runnable() { public void run() { reveal(); } }, 4000);
+        } catch (Exception e) {}
+    }
+
+    void reveal() {
+        if (shown) return;
+        shown = true;
+        try { getBridge().getWebView().animate().alpha(1f).setDuration(160).start(); } catch (Exception e) {}
+    }
+
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(0, 0);
     }
 }
 EOF
@@ -469,6 +529,20 @@ cat > $RES/xml/mibo_interaction.xml <<'EOF'
     android:recognitionService="app.atelas.client.MiboRecognitionService"
     android:supportsAssist="true" />
 EOF
+cat > $RES/values/atelas_overlay.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="MiboOverlay" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Translucent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+</resources>
+EOF
 cat > $RES/xml/mibo_recognition.xml <<'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <recognition-service xmlns:android="http://schemas.android.com/apk/res/android" />
@@ -478,6 +552,7 @@ python3 - <<'PY'
 p='android/app/src/main/AndroidManifest.xml'
 t=open(p,encoding='utf-8').read()
 svc='''
+        <activity android:name=".MiboOverlayActivity" android:theme="@style/MiboOverlay" android:launchMode="singleTask" android:taskAffinity="" android:excludeFromRecents="true" android:exported="false" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode" />
         <service android:name=".HotwordService" android:exported="false" android:foregroundServiceType="microphone" />
         <service android:name=".MiboVoiceInteractionService" android:permission="android.permission.BIND_VOICE_INTERACTION" android:exported="true">
             <meta-data android:name="android.voice_interaction" android:resource="@xml/mibo_interaction" />

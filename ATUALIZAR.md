@@ -15,5 +15,6 @@ O `widgets.sh` (chamado pelo `build.sh`) cria quatro widgets: Atelas Hoje (4x2),
 
 ## Assistente Mibo e "Hey Mibo" (a partir da 1.3.0)
 O `assistente.sh` (chamado pelo `build.sh`) baixa o modelo de voz offline (Vosk, português, ~30 MB) durante o build e cria o serviço do "Hey Mibo" e o registro da Mibo como assistente digital do Android.
+- O Hey Mibo abre a Mibo numa janela translúcida por cima do app aberto (MiboOverlayActivity), como o Google Assistente. Exige "Aparecer sobre outros apps".
 - Perfil > "Mibo, sua assistente": liga o Hey Mibo (notificação fixa enquanto ouve), permite aparecer sobre outros apps e define a Mibo como assistente padrão.
 - Se o download do modelo falhar, o APK sai sem o Hey Mibo e o Actions mostra um aviso.
