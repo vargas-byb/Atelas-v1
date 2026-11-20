@@ -1066,6 +1066,17 @@ function context(){
   return p.join(' ');
 }
 var GEMINI_KEY='__GEMINI_KEY__';
+var GROQ_KEY='__GROQ_KEY__';
+function groqCall(system,contents){
+  var msgs=[{role:'system',content:system}];
+  contents.forEach(function(c){msgs.push({role:c.role==='model'?'assistant':'user',content:c.parts.map(function(p){return p.text||''}).join('\n')})});
+  var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},30000);
+  return fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',signal:ac?ac.signal:undefined,
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_KEY},
+    body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:msgs,temperature:.7})})
+  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw new Error(r.status+' '+((j.error&&j.error.message)||''));
+    var x=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!x||!x.trim())throw new Error('vazio');return x.trim()})},function(e){clearTimeout(to);throw e});
+}
 var AUD_FAIL='Recebi seu áudio e ele ficou guardado aqui, mas não consegui ouvir agora. Se quiser, escreva em texto.';
 function geminiCall(system,contents){
   var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},45000);
@@ -1104,7 +1115,10 @@ function askMibo(){
     var lc=contents[contents.length-1];lc.parts[lc.parts.length-1]={inlineData:{mimeType:String(last.audio.mt||b.type||'audio/webm').split(';')[0],data:d}};
     lc.parts.push({text:'Esta é uma mensagem de áudio minha. Ouça e responda.'});
   })});
-  pre.then(function(){return geminiCall(sys,contents)})
+  pre.then(function(){return geminiCall(sys,contents).catch(function(e){
+    if(isAud||!GROQ_KEY||GROQ_KEY.indexOf('__')===0)throw e;
+    return groqCall(sys,contents).catch(function(){throw e});
+  })})
   .then(function(x){ph.text=cleanMd(x)})
   .catch(function(e){ph.text=isAud?AUD_FAIL:chatErr(e);ph.err=1})
   .then(function(){ui.busy=false;save();paintMsgs()});
