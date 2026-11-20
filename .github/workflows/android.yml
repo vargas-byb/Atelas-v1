@@ -17,7 +17,8 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: sed -i -e "s|__GEMINI_KEY__|$GEMINI_API_KEY|" -e "s|__GROQ_KEY__|$GROQ_API_KEY|" index.html
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: sed -i -e "s|__GEMINI_KEY__|$GEMINI_API_KEY|" -e "s|__GROQ_KEY__|$GROQ_API_KEY|" -e "s|__OPENROUTER_KEY__|$OPENROUTER_API_KEY|" index.html
       - run: bash build.sh
       - uses: actions/upload-artifact@v4
         with:

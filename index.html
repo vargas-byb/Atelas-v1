@@ -348,7 +348,7 @@ var KEY='meudia.v1';
 function hdef(){return{goals:{water:2000,kcal:2000,sleep:8},water:{},meals:[],sleep:[],mibo:{on:true,date:'',txt:''}}}
 function def(){return{v:DATA_VERSION,user:null,logs:[],reminders:[],seeded:false,vids:{},contacts:[],chats:{},notified:{},custom:[],areas:[],notes:{},memos:[],lists:[],habits:[],fin:[],health:hdef(),lastBackup:0,firstRun:0,dog:'',theme:'dark',glass:false}}
 /* Versões: APP_VERSION muda a cada atualização do app. DATA_VERSION só muda quando o formato dos dados muda; nesse caso, acrescente um passo em migrate(). Nunca troque KEY, ou os dados salvos somem. */
-var APP_VERSION='1.1.0',DATA_VERSION=6,MAX_MSGS=300;
+var APP_VERSION='1.1.1',DATA_VERSION=6,MAX_MSGS=300;
 function migrate(o){
   var from=(o&&o.v)||0;
   o=Object.assign(def(),o||{});
@@ -1073,6 +1073,19 @@ function context(){
 }
 var GEMINI_KEY='__GEMINI_KEY__';
 var GROQ_KEY='__GROQ_KEY__';
+var OR_KEY='__OPENROUTER_KEY__';
+var OR_MODEL='openrouter/auto';
+function hasKey(k){return !!k&&k.indexOf('__')!==0}
+function openrouterCall(system,contents){
+  var msgs=[{role:'system',content:system}];
+  contents.forEach(function(c){msgs.push({role:c.role==='model'?'assistant':'user',content:c.parts.map(function(p){return p.text||''}).join('\n')})});
+  var ac=window.AbortController?new AbortController():null,to=setTimeout(function(){if(ac)ac.abort()},30000);
+  return fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',signal:ac?ac.signal:undefined,
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+OR_KEY,'X-Title':'Atelas Client'},
+    body:JSON.stringify({model:OR_MODEL,messages:msgs,max_tokens:500})})
+  .then(function(r){return r.json().catch(function(){return {}}).then(function(j){clearTimeout(to);if(!r.ok)throw new Error(r.status+' '+((j.error&&j.error.message)||''));
+    var x=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;if(!x||!x.trim())throw new Error('vazio');return x.trim()})},function(e){clearTimeout(to);throw e});
+}
 function groqCall(system,contents){
   var msgs=[{role:'system',content:system}];
   contents.forEach(function(c){msgs.push({role:c.role==='model'?'assistant':'user',content:c.parts.map(function(p){return p.text||''}).join('\n')})});
@@ -1145,8 +1158,9 @@ function askMibo(){
     lc.parts.push({text:'Esta é uma mensagem de áudio minha. Ouça e responda.'});
   })});
   pre.then(function(){return geminiCall(sys,contents).catch(function(e){
-    if(isAud||!GROQ_KEY||GROQ_KEY.indexOf('__')===0)throw e;
-    return groqCall(sys,contents).catch(function(){throw e});
+    if(isAud)throw e;
+    var alts=[];if(hasKey(GROQ_KEY))alts.push(groqCall);if(hasKey(OR_KEY))alts.push(openrouterCall);
+    return alts.reduce(function(p,fn){return p.catch(function(){return fn(sys,contents)})},Promise.reject(e)).catch(function(){throw e});
   })})
   .then(function(x){ph.text=cleanMd(x)})
   .catch(function(e){ph.text=isAud?AUD_FAIL:chatErr(e);ph.err=1})
