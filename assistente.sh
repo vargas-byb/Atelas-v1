@@ -71,11 +71,72 @@ public class HotwordService extends Service implements RecognitionListener {
     private static final Pattern PAT = Pattern.compile(
         "\\b(hey|hei|ei|ey|oi|ola|ok|okay|e ai|ai|hay|rei)\\s*(mi+\\s?bo+u?|mim\\s?bo+|mi\\s?bom|mibu|meebo|mimbo)\\b|^mi\\s?bo+u?$");
 
-    static boolean heard(String raw) {
-        if (raw == null || raw.isEmpty()) return false;
-        String s = Normalizer.normalize(raw.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+    interface TrainCb { void step(int n, String text); void done(java.util.List<String> phrases); }
+    static volatile java.util.Set<String> learned = new java.util.HashSet<String>();
+    private TrainCb train;
+    private int trainN = 0;
+    private final java.util.LinkedHashSet<String> trainSet = new java.util.LinkedHashSet<String>();
+    private final Runnable trainTimeout = new Runnable() { public void run() { finishTrain(); } };
+
+    static String norm(String raw) {
+        if (raw == null) return "";
+        return Normalizer.normalize(raw.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
             .replaceAll("\\p{M}", "").replaceAll("[^a-z ]", " ").replaceAll("\\s+", " ").trim();
-        return PAT.matcher(s).find();
+    }
+
+    static void loadLearned(Context c) {
+        java.util.Set<String> s = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet("learned", null);
+        learned = s == null ? new java.util.HashSet<String>() : new java.util.HashSet<String>(s);
+    }
+
+    static void saveLearned(Context c, java.util.Set<String> s) {
+        learned = new java.util.HashSet<String>(s);
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet("learned", new java.util.HashSet<String>(s)).apply();
+    }
+
+    static boolean heard(String raw) {
+        String s = norm(raw);
+        if (s.isEmpty()) return false;
+        if (PAT.matcher(s).find()) return true;
+        for (String p : learned) {
+            if (s.equals(p) || (" " + s + " ").contains(" " + p + " ")) return true;
+        }
+        return false;
+    }
+
+    /** Treino de voz: guarda como o reconhecedor entende "Hey Mibo" na sua voz (5 vezes). */
+    static boolean startTrain(final TrainCb cb) {
+        final HotwordService s = inst;
+        if (s == null || s.model == null || s.speech == null) return false;
+        s.main.post(new Runnable() { public void run() {
+            s.train = cb; s.trainN = 0; s.trainSet.clear();
+            s.main.removeCallbacks(s.trainTimeout);
+            s.main.postDelayed(s.trainTimeout, 60000);
+        }});
+        return true;
+    }
+
+    private void trainText(String raw) {
+        String s = norm(raw);
+        if (s.isEmpty() || train == null) return;
+        trainN++;
+        trainSet.add(s);
+        train.step(trainN, raw.trim());
+        if (trainN >= 5) finishTrain();
+    }
+
+    private void finishTrain() {
+        main.removeCallbacks(trainTimeout);
+        TrainCb cb = train;
+        train = null;
+        if (cb == null) return;
+        java.util.List<String> keep = new java.util.ArrayList<String>();
+        java.util.Set<String> all = new java.util.HashSet<String>(learned);
+        for (String s : trainSet) {
+            if (s.replace(" ", "").length() >= 5 && s.split(" ").length <= 5) { keep.add(s); all.add(s); }
+        }
+        saveLearned(this, all);
+        cb.done(keep);
     }
 
     static boolean enabled(Context c) {
@@ -117,6 +178,7 @@ public class HotwordService extends Service implements RecognitionListener {
     public void onCreate() {
         super.onCreate();
         inst = this;
+        loadLearned(this);
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel a = new NotificationChannel(CH_FG, "Hey Mibo", NotificationManager.IMPORTANCE_LOW);
@@ -266,6 +328,7 @@ public class HotwordService extends Service implements RecognitionListener {
     private void check(String json, String key) {
         try {
             String t = new JSONObject(json).optString(key, "");
+            if (train != null) { if ("text".equals(key)) trainText(t); return; }
             if (heard(t)) fire();
         } catch (Exception e) {}
     }
@@ -285,6 +348,7 @@ public class HotwordService extends Service implements RecognitionListener {
     public void onDestroy() {
         dead = true;
         inst = null;
+        train = null;
         main.removeCallbacksAndMessages(null);
         release();
         try { if (model != null) model.close(); } catch (Exception e) {}
@@ -332,6 +396,10 @@ public class AtelasAssistantPlugin extends Plugin {
             as = cur != null && cur.startsWith(c.getPackageName() + "/");
         } catch (Exception e) {}
         o.put("assistant", as);
+        HotwordService.loadLearned(c);
+        com.getcapacitor.JSArray la = new com.getcapacitor.JSArray();
+        for (String s : HotwordService.learned) la.put(s);
+        o.put("learned", la);
         call.resolve(o);
     }
 
@@ -357,6 +425,32 @@ public class AtelasAssistantPlugin extends Plugin {
         HotwordService.start(c);
         o.put("ok", true);
         call.resolve(o);
+    }
+
+    /** Treino de voz: 5 vezes "Hey Mibo". Avisa cada passo e devolve as frases aprendidas. */
+    @PluginMethod
+    public void train(final PluginCall call) {
+        boolean ok = HotwordService.startTrain(new HotwordService.TrainCb() {
+            public void step(int n, String text) {
+                JSObject o = new JSObject();
+                o.put("n", n); o.put("text", text);
+                notifyListeners("trainStep", o);
+            }
+            public void done(java.util.List<String> phrases) {
+                JSObject o = new JSObject();
+                com.getcapacitor.JSArray a = new com.getcapacitor.JSArray();
+                for (String s : phrases) a.put(s);
+                o.put("ok", true); o.put("phrases", a);
+                call.resolve(o);
+            }
+        });
+        if (!ok) { JSObject o = new JSObject(); o.put("ok", false); call.resolve(o); }
+    }
+
+    @PluginMethod
+    public void trainReset(PluginCall call) {
+        HotwordService.saveLearned(getContext(), new java.util.HashSet<String>());
+        call.resolve();
     }
 
     /** Chamado ao abrir o app: religa o serviço se o usuário deixou o Hey Mibo ativo. */

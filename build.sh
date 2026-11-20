@@ -33,7 +33,7 @@ t=t.replace("    buildTypes {\n        release {","""    signingConfigs {
     buildTypes {
         release {
             signingConfig signingConfigs.release""",1)
-t=t.replace('versionCode 1\n        versionName "1.0"','versionCode 22\n        versionName "1.3.2"')
+t=t.replace('versionCode 1\n        versionName "1.0"','versionCode 23\n        versionName "1.3.3"')
 open(p,'w').write(t)
 # ícone de notificação (branco sobre transparente)
 f=Image.open('assets/icon-foreground.png').convert('RGBA')
